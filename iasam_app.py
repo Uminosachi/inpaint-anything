@@ -85,11 +85,13 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, scale, seed
     pipe = pipe.to(device)
     pipe.enable_xformers_memory_efficient_attention()
     
-    mask_image = np.sum(sel_mask, axis=-1, keepdims=True).astype(bool).astype(np.uint8) * 255
-    mask_image = np.repeat(mask_image, 3, axis=-1)
-    
+    # mask_image = np.sum(sel_mask, axis=-1, keepdims=True).astype(bool).astype(np.uint8) * 255
+    # mask_image = np.repeat(mask_image, 3, axis=-1)
+    mask_image = sel_mask
+        
     init_image = Image.fromarray(input_image).convert("RGB")
     mask_image = Image.fromarray(mask_image).convert("RGB")
+    
     print(init_image.size, mask_image.size)
     width, height = init_image.size
     
