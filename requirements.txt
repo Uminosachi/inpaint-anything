@@ -1,0 +1,14 @@
+accelerate==0.18.0
+diffusers==0.14.0
+gradio==3.25.0
+huggingface-hub==0.13.4
+matplotlib==3.7.1
+numpy==1.24.2
+opencv-python==4.7.0.72
+Pillow==9.5.0
+-e git+https://github.com/facebookresearch/segment-anything.git#egg=segment_anything
+torch==2.0.0
+torchaudio==2.0.1
+torchvision==0.15.1
+transformers==4.27.4
+xformers==0.0.18
