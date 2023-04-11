@@ -85,8 +85,6 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, scale, seed
     pipe = pipe.to(device)
     pipe.enable_xformers_memory_efficient_attention()
     
-    # mask_image = np.sum(sel_mask, axis=-1, keepdims=True).astype(bool).astype(np.uint8) * 255
-    # mask_image = np.repeat(mask_image, 3, axis=-1)
     mask_image = sel_mask
         
     init_image = Image.fromarray(input_image).convert("RGB")
@@ -144,7 +142,7 @@ with block:
             out_image = gr.Image(label="Inpainted image", elem_id="out_image", interactive=False).style(height=480)
             
         with gr.Column():
-            sam_image = gr.Image(label="Segment Anything image", elem_id="sam_image", type="numpy", tool="sketch", brush_radius=8)
+            sam_image = gr.Image(label="Segment Anything image", elem_id="sam_image", type="numpy", tool="sketch", brush_radius=6).style(height=480)
             select_btn = gr.Button("Determine mask")
             
             sel_mask = gr.Image(label="Selected mask image", elem_id="sel_mask", type="numpy", interactive=False).style(height=480)
