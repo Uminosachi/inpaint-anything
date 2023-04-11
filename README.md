@@ -26,7 +26,7 @@ python iasam_app.py
 ## Usage
 * Drag and drop your image to the input image area
 * Click the "Run Segment Anything" button
-* Point in the mask to inpaint by sketch function
+* Point by sketching inside the segment to inpaint
 * Click the "Determine mask" button (the mask is showed in the selected mask image area)
 * Select Model ID, Enter Prompt and Negative prompt
 * Click the "Run Inpainting" button (**It take some time to download the model the first time**)
