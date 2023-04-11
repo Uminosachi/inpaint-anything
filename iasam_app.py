@@ -142,7 +142,7 @@ with block:
             out_image = gr.Image(label="Inpainted image", elem_id="out_image", interactive=False).style(height=480)
             
         with gr.Column():
-            sam_image = gr.Image(label="Segment Anything image", elem_id="sam_image", type="numpy", tool="sketch", brush_radius=6).style(height=480)
+            sam_image = gr.Image(label="Segment Anything image", elem_id="sam_image", type="numpy", tool="sketch", brush_radius=8).style(height=480)
             select_btn = gr.Button("Determine mask")
             
             sel_mask = gr.Image(label="Selected mask image", elem_id="sel_mask", type="numpy", interactive=False).style(height=480)
