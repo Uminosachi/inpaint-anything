@@ -36,7 +36,7 @@ Inpainting is done by [diffusers](https://github.com/huggingface/diffusers).
 ![UI image](images/inpaint_anything_ui_image_1.png)
 
 ## Auto save images
-* Set environment variables before running
+* Set environment variable before running
 * Images be saved in the current directory
 ```bash
 export IASAM_DEBUG=1
