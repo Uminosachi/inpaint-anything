@@ -31,12 +31,12 @@ python iasam_app.py
 
 ## Usage
 
-* Drag and drop your image to the input image area.
+* Drag and drop your image onto the input image area.
 * Click the "Run Segment Anything" button.
-* Use sketching to define the area to be inpainted.
-* Click the "Create mask" button (the mask is displayed in the selected mask image area).
-* Select the Model ID, Enter Prompt and Negative prompt.
-* Click the "Run Inpainting" button (**It may take some time to download the model for the first time**).
+* Use sketching to define the area you want to inpaint. You can undo and adjust the pen size.
+* Click the "Create mask" button (the mask will appear in the selected mask image area).
+* Choose the Model ID, enter the Prompt and Negative Prompt.
+* Click the "Run Inpainting" button (**Please note that it may take some time to download the model for the first time**).
 
 Inpainting is performed using [diffusers](https://github.com/huggingface/diffusers).
 
