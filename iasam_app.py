@@ -8,6 +8,7 @@ from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 import hashlib
 from get_dataset_colormap import create_pascal_label_colormap
 from torch.hub import download_url_to_file
+import cv2
 
 IASAM_DEBUG = bool(int(os.environ.get("IASAM_DEBUG", "0")))
 
@@ -28,6 +29,9 @@ mask_generator = SamAutomaticMaskGenerator(sam)
 masks = None
 
 cm_pascal = create_pascal_label_colormap()
+colormap = cm_pascal
+colormap = [c for c in colormap if max(c) >= 64]
+#print(len(colormap))
 
 model_ids = [
     "runwayml/stable-diffusion-inpainting",
@@ -44,10 +48,11 @@ def run_sam(input_image):
     canvas_image = np.zeros_like(input_image)
 
     masks = sorted(masks, key=lambda x: np.sum(x.get("segmentation").astype(int)))
+    masks = masks[:len(colormap)]
     for idx, seg_dict in enumerate(masks):
         seg_mask = np.expand_dims(seg_dict.get("segmentation").astype(int), axis=-1)
         canvas_mask = np.logical_not(np.sum(canvas_image, axis=-1, keepdims=True).astype(bool)).astype(int)
-        seg_color = cm_pascal[idx] * seg_mask * canvas_mask
+        seg_color = colormap[idx] * seg_mask * canvas_mask
         canvas_image = canvas_image + seg_color
     seg_image = canvas_image.astype(np.uint8)
     
@@ -71,7 +76,7 @@ def select_mask(masks_image):
         canvas_mask = np.logical_not(np.sum(canvas_image, axis=-1, keepdims=True).astype(bool)).astype(int)
         if (seg_mask * canvas_mask * mask).astype(bool).any():
             mask_region = mask_region + (seg_mask * canvas_mask * 255)
-        seg_color = cm_pascal[idx] * seg_mask * canvas_mask        
+        seg_color = colormap[idx] * seg_mask * canvas_mask        
         canvas_image = canvas_image + seg_color
     seg_image = mask_region.astype(np.uint8)
 
