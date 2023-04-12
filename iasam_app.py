@@ -7,12 +7,18 @@ from diffusers import StableDiffusionInpaintPipeline, UniPCMultistepScheduler
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 import hashlib
 from get_dataset_colormap import create_pascal_label_colormap
+from torch.hub import download_url_to_file
 
 IASAM_DEBUG = bool(int(os.environ.get("IASAM_DEBUG", "0")))
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 sam_checkpoint = os.path.join(os.path.dirname(__file__), "sam_vit_h_4b8939.pth")
+
+url_sam_vit_h_4b8939 = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth"
+if not os.path.isfile(sam_checkpoint):
+    download_url_to_file(url_sam_vit_h_4b8939, sam_checkpoint)
+
 model_type = "vit_h"
 
 sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)

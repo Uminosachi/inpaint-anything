@@ -16,8 +16,9 @@ pip install -r requirements.txt
 
 ## Download model
 
-* Download sam_vit_h_4b8939.pth from the [model checkpoints](https://github.com/facebookresearch/segment-anything#model-checkpoints).
-* Put the model in the same directory as the iasam_app.py file.
+* Download `sam_vit_h_4b8939.pth` from the [model checkpoints](https://github.com/facebookresearch/segment-anything#model-checkpoints).
+* Place the downloaded file in the same directory as the `iasam_app.py` file.
+* If the file does not exist, it will be automatically downloaded after running the application.
 
 ## Running the application
 
