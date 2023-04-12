@@ -2,6 +2,9 @@
 
 Inpaint Anything performs stable diffusion inpainting on a browser UI using any mask selected from the output of [Segment Anything](https://github.com/facebookresearch/segment-anything).
 
+
+Using Segment Anything enables users to specify masks by simply pointing to the desired areas, instead of manually filling them in. This can increase the efficiency and accuracy of the mask creation process, leading to potentially higher-quality inpainting results while saving time and effort.
+
 ![Explanation image](images/inpaint_anything_explanation_image_1.png)
 
 ## Installation
