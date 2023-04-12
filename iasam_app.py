@@ -8,7 +8,6 @@ from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 import hashlib
 from get_dataset_colormap import create_pascal_label_colormap
 from torch.hub import download_url_to_file
-import cv2
 
 IASAM_DEBUG = bool(int(os.environ.get("IASAM_DEBUG", "0")))
 
