@@ -37,6 +37,7 @@ python iasam_app.py
 * Click the "Create mask" button (the mask will appear in the selected mask image area).
 * Choose the Model ID, enter the Prompt and Negative Prompt.
 * Click the "Run Inpainting" button (**Please note that it may take some time to download the model for the first time**).
+* You can change the seed in the Advanced options.
 
 Inpainting is performed using [diffusers](https://github.com/huggingface/diffusers).
 
