@@ -40,8 +40,10 @@ model_ids = [
     ]
 
 def run_sam(input_image):
+    if input_image is None:
+        return None
     print("input_image:", input_image.shape, input_image.dtype)
-
+    
     global masks
     masks = mask_generator.generate(input_image)
 
