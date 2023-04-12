@@ -8,6 +8,7 @@ from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 import hashlib
 from get_dataset_colormap import create_pascal_label_colormap
 from torch.hub import download_url_to_file
+from torchvision import transforms
 
 IASAM_DEBUG = bool(int(os.environ.get("IASAM_DEBUG", "0")))
 
@@ -86,6 +87,9 @@ def select_mask(masks_image):
     return seg_image
 
 def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, scale, seed, model_id):
+    if input_image is None or sel_mask is None:
+        return None
+
     print(model_id)
     pipe = StableDiffusionInpaintPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
     pipe.safety_checker = None
@@ -99,9 +103,25 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, scale, seed
         
     init_image = Image.fromarray(input_image).convert("RGB")
     mask_image = Image.fromarray(mask_image).convert("RGB")
-    
-    print(init_image.size, mask_image.size)
+    assert init_image.size == mask_image.size
+    #print(init_image.size, mask_image.size)
     width, height = init_image.size
+
+    new_height = (height // 8) * 8
+    new_width = (width // 8) * 8
+    if new_width < width or new_height < height:
+        if (new_width / width) < (new_height / height):
+            scale = new_height / height
+        else:
+            scale = new_width / width
+        print("resize:", f"({height}, {width})", "->", f"({int(height*scale+0.5)}, {int(width*scale+0.5)})")
+        init_image = transforms.functional.resize(init_image, (int(height*scale+0.5), int(width*scale+0.5)), transforms.InterpolationMode.LANCZOS)
+        mask_image = transforms.functional.resize(mask_image, (int(height*scale+0.5), int(width*scale+0.5)), transforms.InterpolationMode.LANCZOS)
+        print("center_crop:", f"({int(height*scale)}, {int(width*scale)})", "->", f"({new_height}, {new_width})")
+        init_image = transforms.functional.center_crop(init_image, (new_height, new_width))
+        mask_image = transforms.functional.center_crop(mask_image, (new_height, new_width))
+        assert init_image.size == mask_image.size
+        width, height = init_image.size
     
     generator = torch.Generator(device).manual_seed(seed)
     
