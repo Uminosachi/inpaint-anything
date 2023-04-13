@@ -1,6 +1,7 @@
 accelerate==0.18.0
-diffusers==0.14.0
+diffusers==0.15.0
 gradio==3.25.0
+gradio_client==0.1.0
 huggingface-hub==0.13.4
 matplotlib==3.7.1
 numpy==1.24.2
@@ -10,5 +11,5 @@ Pillow==9.5.0
 torch==2.0.0
 torchaudio==2.0.1
 torchvision==0.15.1
-transformers==4.27.4
+transformers==4.28.0
 xformers==0.0.18
