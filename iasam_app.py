@@ -10,6 +10,7 @@ from get_dataset_colormap import create_pascal_label_colormap
 from torch.hub import download_url_to_file
 from torchvision import transforms
 from datetime import datetime
+import gc
 
 IASAM_DEBUG = bool(int(os.environ.get("IASAM_DEBUG", "0")))
 
@@ -43,6 +44,15 @@ model_ids = [
     "parlance/dreamlike-diffusion-1.0-inpainting",
     ]
 
+def torch_gc():
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+
+def clear_cache():
+    gc.collect()
+    torch_gc()
+
 def run_sam(input_image):
     if input_image is None:
         return None
@@ -69,6 +79,7 @@ def run_sam(input_image):
         save_name = os.path.join(output_dir, save_name)
         Image.fromarray(seg_image).save(save_name)
 
+    clear_cache()
     return seg_image
 
 def select_mask(masks_image):
@@ -101,6 +112,7 @@ def select_mask(masks_image):
     #     save_name = os.path.join(output_dir, save_name)
     #     Image.fromarray(seg_image).save(save_name)
 
+    clear_cache()
     return seg_image
 
 def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, scale, seed, model_id):
@@ -176,6 +188,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, scale, seed
         save_name = os.path.join(output_dir, save_name)
         output_image.save(save_name)
     
+    clear_cache()
     return output_image
 
 block = gr.Blocks().queue()
