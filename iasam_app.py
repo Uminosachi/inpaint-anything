@@ -3,7 +3,7 @@ import torch
 import numpy as np
 from PIL import Image
 import gradio as gr
-from diffusers import StableDiffusionInpaintPipeline, UniPCMultistepScheduler
+from diffusers import StableDiffusionInpaintPipeline, DDIMScheduler, UniPCMultistepScheduler
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 #import hashlib
 from get_dataset_colormap import create_pascal_label_colormap
@@ -122,7 +122,8 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, scale, seed
     pipe = StableDiffusionInpaintPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
     pipe.safety_checker = None
 
-    pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
+    pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
+    #pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
 
     #pipe = pipe.to(device)
     pipe.enable_model_cpu_offload()
