@@ -37,9 +37,10 @@ colormap = [c for c in colormap if max(c) >= 64]
 #print(len(colormap))
 
 model_ids = [
-    "runwayml/stable-diffusion-inpainting",
     "stabilityai/stable-diffusion-2-inpainting",
+    "runwayml/stable-diffusion-inpainting",
     "saik0s/realistic_vision_inpainting",
+    "parlance/dreamlike-diffusion-1.0-inpainting",
     ]
 
 def run_sam(input_image):
@@ -86,14 +87,19 @@ def select_mask(masks_image):
             mask_region = mask_region + (seg_mask * canvas_mask * 255)
         seg_color = colormap[idx] * seg_mask * canvas_mask        
         canvas_image = canvas_image + seg_color
+    
+    canvas_mask = np.logical_not(np.sum(canvas_image, axis=-1, keepdims=True).astype(bool)).astype(int)
+    if (canvas_mask * mask).astype(bool).any():
+        mask_region = mask_region + (canvas_mask * 255)
+    
     seg_image = mask_region.astype(np.uint8)
 
-    if IASAM_DEBUG:
-        if not os.path.isdir(output_dir):
-            os.makedirs(output_dir, exist_ok=True)
-        save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + "created_mask" + ".png"
-        save_name = os.path.join(output_dir, save_name)
-        Image.fromarray(seg_image).save(save_name)
+    # if IASAM_DEBUG:
+    #     if not os.path.isdir(output_dir):
+    #         os.makedirs(output_dir, exist_ok=True)
+    #     save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + "created_mask" + ".png"
+    #     save_name = os.path.join(output_dir, save_name)
+    #     Image.fromarray(seg_image).save(save_name)
 
     return seg_image
 
@@ -101,13 +107,25 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, scale, seed
     if input_image is None or sel_mask is None:
         return None
 
+    sel_mask_image = sel_mask["image"]
+    sel_mask_mask = np.logical_not(sel_mask["mask"][:,:,0:3].astype(bool)).astype(np.uint8)
+    sel_mask = sel_mask_image * sel_mask_mask
+
+    if IASAM_DEBUG:
+        if not os.path.isdir(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+        save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + "created_mask" + ".png"
+        save_name = os.path.join(output_dir, save_name)
+        Image.fromarray(sel_mask).save(save_name)
+
     print(model_id)
     pipe = StableDiffusionInpaintPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
     pipe.safety_checker = None
 
     pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
 
-    pipe = pipe.to(device)
+    #pipe = pipe.to(device)
+    pipe.enable_model_cpu_offload()
     pipe.enable_xformers_memory_efficient_attention()
     
     mask_image = sel_mask
@@ -160,6 +178,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, scale, seed
     return output_image
 
 block = gr.Blocks().queue()
+block.title = "Inpaint Anything"
 with block:
     with gr.Row():
         gr.Markdown("## Inpainting with Segment Anything")
@@ -189,7 +208,7 @@ with block:
             sam_image = gr.Image(label="Segment Anything image", elem_id="sam_image", type="numpy", tool="sketch", brush_radius=8).style(height=480)
             select_btn = gr.Button("Create mask")
             
-            sel_mask = gr.Image(label="Selected mask image", elem_id="sel_mask", type="numpy", interactive=False).style(height=480)
+            sel_mask = gr.Image(label="Selected mask image", elem_id="sel_mask", type="numpy", tool="sketch", brush_radius=16).style(height=480)
             
         sam_btn.click(run_sam, inputs=[input_image], outputs=[sam_image])
         select_btn.click(select_mask, inputs=[sam_image], outputs=[sel_mask])
