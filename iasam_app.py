@@ -5,10 +5,11 @@ from PIL import Image
 import gradio as gr
 from diffusers import StableDiffusionInpaintPipeline, UniPCMultistepScheduler
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
-import hashlib
+#import hashlib
 from get_dataset_colormap import create_pascal_label_colormap
 from torch.hub import download_url_to_file
 from torchvision import transforms
+from datetime import datetime
 
 IASAM_DEBUG = bool(int(os.environ.get("IASAM_DEBUG", "0")))
 
@@ -25,6 +26,8 @@ model_type = "vit_h"
 sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
 sam.to(device=device)
 mask_generator = SamAutomaticMaskGenerator(sam)
+
+output_dir = os.path.join(os.path.dirname(__file__), "outputs", datetime.now().strftime("%Y-%m-%d"))
 
 masks = None
 
@@ -59,7 +62,10 @@ def run_sam(input_image):
     seg_image = canvas_image.astype(np.uint8)
     
     if IASAM_DEBUG:
-        save_name = hashlib.md5(input_image.tobytes()).hexdigest()[0:16] + "_" + os.path.splitext(os.path.basename(sam_checkpoint))[0] + ".png"
+        if not os.path.isdir(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+        save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + os.path.splitext(os.path.basename(sam_checkpoint))[0] + ".png"
+        save_name = os.path.join(output_dir, save_name)
         Image.fromarray(seg_image).save(save_name)
 
     return seg_image
@@ -83,7 +89,10 @@ def select_mask(masks_image):
     seg_image = mask_region.astype(np.uint8)
 
     if IASAM_DEBUG:
-        save_name = hashlib.md5(mask.tobytes()).hexdigest()[0:16] + "_" + "selected_mask" + ".png"
+        if not os.path.isdir(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+        save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + "created_mask" + ".png"
+        save_name = os.path.join(output_dir, save_name)
         Image.fromarray(seg_image).save(save_name)
 
     return seg_image
@@ -141,8 +150,11 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, scale, seed
     
     output_image = pipe(**pipe_args_dict).images[0]
     
-    if IASAM_DEBUG:
-        save_name = hashlib.md5(np.array(output_image).tobytes()).hexdigest()[0:16] + "_" + os.path.basename(model_id) + "_" + str(seed) + ".png"
+    if True:
+        if not os.path.isdir(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+        save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + os.path.basename(model_id) + "_" + str(seed) + ".png"
+        save_name = os.path.join(output_dir, save_name)
         output_image.save(save_name)
     
     return output_image

@@ -49,8 +49,8 @@ Inpainting is performed using [diffusers](https://github.com/huggingface/diffuse
 
 ## Auto-saving images
 
-* Set the environment variable before running.
-* Images will be saved in the current directory.
+* The inpainted image will be automatically saved in the folder corresponding to the current date within the "outputs" directory.
+* If you would like to save the segmented and masked images as well, please set the environment variable before running.
 
 ```bash
 export IASAM_DEBUG=1
