@@ -11,7 +11,7 @@ Using Segment Anything enables users to specify masks by simply pointing to the 
 
 Please follow these steps to install the software:
 
-1. Create a new conda environment with Python:
+1. Create a new conda environment:
 
 ```bash
 conda create -n inpaint python=3.10
