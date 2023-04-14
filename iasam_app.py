@@ -59,11 +59,16 @@ def clear_cache():
     torch_gc()
 
 def run_sam(input_image):
+    global masks
+    if masks is not None:
+        masks = None
+        clear_cache()
+    
     if input_image is None:
+        clear_cache()
         return None
     print("input_image:", input_image.shape, input_image.dtype)
-    
-    global masks
+        
     masks = mask_generator.generate(input_image)
 
     canvas_image = np.zeros_like(input_image)
@@ -89,9 +94,11 @@ def run_sam(input_image):
     return seg_image
 
 def select_mask(masks_image):
-    if masks_image is None or masks is None:
+    global masks
+    if masks is None or masks_image is None:
+        clear_cache()
         return None
-
+    
     image = masks_image["image"]
     mask = masks_image["mask"][:,:,0:3]
     
@@ -123,6 +130,7 @@ def select_mask(masks_image):
 
 def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, scale, seed, model_id):
     if input_image is None or sel_mask is None:
+        clear_cache()
         return None
 
     sel_mask_image = sel_mask["image"]
