@@ -9,12 +9,36 @@ Using Segment Anything enables users to specify masks by simply pointing to the 
 
 ## Installation
 
+Please follow these steps to install the software:
+
+1. Create a new conda environment with Python:
+
 ```bash
 conda create -n inpaint python=3.10
 conda activate inpaint
+```
+
+2. Clone the software repository:
+
+```bash
 git clone https://github.com/Uminosachi/inpaint-anything.git
 cd inpaint-anything
+```
+
+3. Install the required Python packages:
+
+```bash
 pip install -r requirements.txt
+```
+
+If you are using CUDA 11.7 or CUDA 11.8, please install the following package instead of the previous one:
+
+```bash
+pip install -r requirements_cu117.txt
+```
+
+```bash
+pip install -r requirements_cu118.txt
 ```
 
 ## Download model
