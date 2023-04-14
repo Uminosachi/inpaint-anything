@@ -1,6 +1,6 @@
 accelerate==0.18.0
 diffusers==0.15.0
-gradio==3.25.0
+gradio==3.26.0
 gradio_client==0.1.2
 huggingface-hub==0.13.4
 matplotlib==3.7.1

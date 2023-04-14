@@ -145,7 +145,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, scale, seed
         
     init_image = Image.fromarray(input_image).convert("RGB")
     mask_image = Image.fromarray(mask_image).convert("RGB")
-    assert init_image.size == mask_image.size
+    assert init_image.size == mask_image.size, "The size of image and mask do not match"
     #print(init_image.size, mask_image.size)
     width, height = init_image.size
 
@@ -162,7 +162,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, scale, seed
         print("center_crop:", f"({int(height*scale)}, {int(width*scale)})", "->", f"({new_height}, {new_width})")
         init_image = transforms.functional.center_crop(init_image, (new_height, new_width))
         mask_image = transforms.functional.center_crop(mask_image, (new_height, new_width))
-        assert init_image.size == mask_image.size
+        assert init_image.size == mask_image.size, "The size of image and mask do not match"
         width, height = init_image.size
     
     generator = torch.Generator(device).manual_seed(seed)
