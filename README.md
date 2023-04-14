@@ -16,7 +16,6 @@ git clone https://github.com/Uminosachi/inpaint-anything.git
 cd inpaint-anything
 pip install -r requirements.txt
 ```
-* If PyTorch 2.0.0 and xFormers are not working on Windows, it may be worth trying [PyTorch 1.13.1](https://pytorch.org/get-started/previous-versions/) as an alternative.
 
 ## Download model
 
