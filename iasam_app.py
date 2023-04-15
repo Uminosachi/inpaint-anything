@@ -12,6 +12,9 @@ from torchvision import transforms
 from datetime import datetime
 import gc
 import argparse
+import platform
+pf = platform.system()
+print("platform:", pf)
 
 #IASAM_DEBUG = bool(int(os.environ.get("IASAM_DEBUG", "0")))
 parser = argparse.ArgumentParser(description="Inpaint Anything")
@@ -146,15 +149,23 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, scale, seed
         Image.fromarray(sel_mask).save(save_name)
 
     print(model_id)
-    pipe = StableDiffusionInpaintPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
+    if pf == "Darwin":
+        pipe = StableDiffusionInpaintPipeline.from_pretrained(model_id, torch_dtype=torch.float32)
+    else:
+        pipe = StableDiffusionInpaintPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
     pipe.safety_checker = None
 
     pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
     #pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
 
-    #pipe = pipe.to(device)
-    pipe.enable_model_cpu_offload()
-    pipe.enable_xformers_memory_efficient_attention()
+    if pf == "Darwin":
+        pipe = pipe.to("mps")
+        pipe.enable_attention_slicing()
+        generator = torch.Generator("cpu").manual_seed(seed)
+    else:
+        pipe.enable_model_cpu_offload()
+        pipe.enable_xformers_memory_efficient_attention()
+        generator = torch.Generator(device).manual_seed(seed)
     
     mask_image = sel_mask
         
@@ -179,8 +190,6 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, scale, seed
         mask_image = transforms.functional.center_crop(mask_image, (new_height, new_width))
         assert init_image.size == mask_image.size, "The size of image and mask do not match"
         width, height = init_image.size
-    
-    generator = torch.Generator(device).manual_seed(seed)
     
     pipe_args_dict = {
         "prompt": prompt,

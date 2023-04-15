@@ -41,6 +41,12 @@ pip install -r requirements_cu117.txt
 pip install -r requirements_cu118.txt
 ```
 
+If you are using macOS, please install the following package instead of the previous one:
+
+```bash
+pip install -r requirements_mac.txt
+```
+
 ## Download model
 
 * Download `sam_vit_h_4b8939.pth` from the [model checkpoints](https://github.com/facebookresearch/segment-anything#model-checkpoints).
