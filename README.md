@@ -50,8 +50,8 @@ pip install -r requirements_mac.txt
 ## Download model
 
 * Download `sam_vit_h_4b8939.pth` from the [model checkpoints](https://github.com/facebookresearch/segment-anything#model-checkpoints).
-* Place the downloaded file in the same directory as the `iasam_app.py` file.
-* If the file does not exist, it will be automatically downloaded after running the application.
+* Place the downloaded file in the `models` directory.
+* If the file does not exist, you can download it by clicking the download button after launching the application.
 
 ## Running the application
 
