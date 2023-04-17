@@ -270,7 +270,7 @@ def on_ui_tabs():
                 prompt = gr.Textbox(label="Prompt")
                 n_prompt = gr.Textbox(label="Negative prompt")
                 with gr.Accordion("Advanced options", open=False):
-                    ddim_steps = gr.Slider(label="Steps", minimum=1, maximum=50, value=20, step=1)
+                    ddim_steps = gr.Slider(label="Sampling Steps", minimum=1, maximum=50, value=20, step=1)
                     scale = gr.Slider(label="Guidance Scale", minimum=0.1, maximum=30.0, value=7.5, step=0.1)
                     seed = gr.Slider(
                         label="Seed",

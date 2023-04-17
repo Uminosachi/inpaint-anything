@@ -47,12 +47,6 @@ If you are using macOS, please install the following package instead of the prev
 pip install -r requirements_mac.txt
 ```
 
-## Download model
-
-* Download `sam_vit_h_4b8939.pth` from the [model checkpoints](https://github.com/facebookresearch/segment-anything#model-checkpoints).
-* Place the downloaded file in the `models` directory.
-* If the file does not exist, you can download it by clicking the download button after launching the application.
-
 ## Running the application
 
 ```bash
@@ -62,15 +56,24 @@ python iasam_app.py
 * Open http://127.0.0.1:7860/ in your browser.
 * Recommended browsers: Microsoft Edge or Mozilla Firefox (as mask selection may not work properly with Google Chrome).
 
+## Downloading the Model
+
+To download the model:
+
+1. Launch this application.
+2. Click on the "Download model" button next to the [Segment Anything Model ID](https://github.com/facebookresearch/segment-anything#model-checkpoints).
+3. Wait for the download to complete.
+4. The downloaded model file will be stored in the `models` directory of this application's repository.
+
 ## Usage
 
 * Drag and drop your image onto the input image area.
 * Click the "Run Segment Anything" button.
 * Use sketching to define the area you want to inpaint. You can undo and adjust the pen size.
 * Click the "Create mask" button (the mask will appear in the selected mask image area).
-* Choose the Model ID, enter the Prompt and Negative Prompt.
+* Enter the Prompt and Negative Prompt, Choose the Inpainting Model ID.
 * Click the "Run Inpainting" button (**Please note that it may take some time to download the model for the first time**).
-* You can change the seed in the Advanced options.
+* You can change the Sampling Steps, the Guidance Scale and the Seed in the Advanced options.
 
 Inpainting is performed using [diffusers](https://github.com/huggingface/diffusers).
 
