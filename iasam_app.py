@@ -88,7 +88,7 @@ def run_sam(input_image, sam_model_id):
     sam_checkpoint = os.path.join(os.path.dirname(__file__), "models", sam_model_id)
     if not os.path.isfile(sam_checkpoint):
         clear_cache()
-        return None, f"{sam_model_id} not found"
+        return None, f"{sam_model_id} not found, please download"
     
     if input_image is None:
         clear_cache()
@@ -127,8 +127,7 @@ def run_sam(input_image, sam_model_id):
     clear_cache()
     return seg_image, "Segment Anything completed"
 
-def select_mask(masks_image):
-    # global sam_masks
+def select_mask(masks_image, invert_chk):
     global sam_dict
     if sam_dict["sam_masks"] is None or masks_image is None:
         clear_cache()
@@ -154,6 +153,9 @@ def select_mask(masks_image):
         mask_region = mask_region + (canvas_mask * 255)
     
     seg_image = mask_region.astype(np.uint8)
+
+    if invert_chk:
+        seg_image = np.logical_not(seg_image.astype(bool)).astype(np.uint8) * 255
 
     clear_cache()
     return seg_image
@@ -265,7 +267,6 @@ def on_ui_tabs():
                 input_image = gr.Image(label="Input image", elem_id="input_image", source="upload", type="numpy", interactive=True)
                 sam_btn = gr.Button("Run Segment Anything")
                 
-                model_id = gr.Dropdown(label="Model ID", elem_id="model_id", choices=model_ids, value=model_ids[0])
                 prompt = gr.Textbox(label="Prompt")
                 n_prompt = gr.Textbox(label="Negative prompt")
                 with gr.Accordion("Advanced options", open=False):
@@ -278,21 +279,30 @@ def on_ui_tabs():
                         step=1,
                         randomize=True,
                     )
-                inpaint_btn = gr.Button("Run Inpainting")
-                
+                with gr.Row():
+                    with gr.Column():
+                        model_id = gr.Dropdown(label="Inpainting Model ID", elem_id="model_id", choices=model_ids, value=model_ids[0], show_label=True)
+                    with gr.Column():
+                        with gr.Row():
+                            inpaint_btn = gr.Button("Run Inpainting")
+                                    
                 out_image = gr.Image(label="Inpainted image", elem_id="out_image", interactive=False).style(height=480)
                 
             with gr.Column():
                 sam_image = gr.Image(label="Segment Anything image", elem_id="sam_image", type="numpy", tool="sketch", brush_radius=8,
                                      interactive=True).style(height=480)
-                select_btn = gr.Button("Create mask")
-                
+                with gr.Row():
+                    with gr.Column():
+                        select_btn = gr.Button("Create mask")
+                    with gr.Column():
+                        invert_chk = gr.Checkbox(label="Invert mask", elem_id="invert_chk", show_label=True, interactive=True)
+
                 sel_mask = gr.Image(label="Selected mask image", elem_id="sel_mask", type="numpy", tool="sketch", brush_radius=16,
                                     interactive=True).style(height=480)
             
             load_model_btn.click(download_model, inputs=[sam_model_id], outputs=[status_text])
             sam_btn.click(run_sam, inputs=[input_image, sam_model_id], outputs=[sam_image, status_text])
-            select_btn.click(select_mask, inputs=[sam_image], outputs=[sel_mask])
+            select_btn.click(select_mask, inputs=[sam_image, invert_chk], outputs=[sel_mask])
             inpaint_btn.click(run_inpaint, inputs=[input_image, sel_mask, prompt, n_prompt, ddim_steps, scale, seed, model_id],
                               outputs=[out_image])
     
