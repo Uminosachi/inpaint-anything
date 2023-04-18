@@ -56,7 +56,7 @@ python iasam_app.py
 ```
 
 * Open http://127.0.0.1:7860/ in your browser.
-* Recommended browsers: Microsoft Edge or Mozilla Firefox (as mask selection may not work properly with Google Chrome).
+* Recommended browsers: Mozilla Firefox or Microsoft Edge (as mask selection may not work properly with Google Chrome).
 
 ## Downloading the Model
 
