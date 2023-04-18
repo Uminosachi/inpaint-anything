@@ -5,6 +5,8 @@ Inpaint Anything performs stable diffusion inpainting on a browser UI using any 
 
 Using Segment Anything enables users to specify masks by simply pointing to the desired areas, instead of manually filling them in. This can increase the efficiency and accuracy of the mask creation process, leading to potentially higher-quality inpainting results while saving time and effort.
 
+[Extension version for AUTOMATIC1111's Web UI](https://github.com/Uminosachi/sd-webui-inpaint-anything)
+
 ![Explanation image](images/inpaint_anything_explanation_image_1.png)
 
 ## Installation
