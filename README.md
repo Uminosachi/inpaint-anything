@@ -56,7 +56,7 @@ python iasam_app.py
 ```
 
 * Open http://127.0.0.1:7860/ in your browser.
-* Recommended browsers: Mozilla Firefox or Microsoft Edge (as mask selection may not work properly with Google Chrome).
+* Note: If you have a privacy protection extension enabled in your web browser, such as DuckDuckGo, you may not be able to retrieve the mask from your sketch.
 
 ## Downloading the Model
 
