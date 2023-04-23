@@ -16,7 +16,7 @@ from PIL.PngImagePlugin import PngInfo
 import time
 print("platform:", platform.system())
 
-_USE_HUGGINGFACE = True
+_USE_HUGGINGFACE = False
 
 if _USE_HUGGINGFACE:
     from transformers import pipeline
