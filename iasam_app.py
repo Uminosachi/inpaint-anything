@@ -142,7 +142,7 @@ def run_sam(input_image, sam_model_id):
         sam_masks = sam_mask_generator(Image.fromarray(input_image))
     t2 = time.time()
     elapsed_time = t2-t1
-    print(f"SAM processing time：{elapsed_time}")
+    print(f"SAM processing time: {elapsed_time}")
 
     canvas_image = np.zeros_like(input_image)
 
