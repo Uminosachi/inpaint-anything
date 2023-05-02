@@ -29,6 +29,11 @@ args = parser.parse_args()
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 def get_sam_model_ids():
+    """Get SAM model ids list.
+
+    Returns:
+        list: SAM model ids list
+    """
     sam_model_ids = [
         "sam_vit_h_4b8939.pth",
         "sam_vit_l_0b3195.pth",
@@ -37,6 +42,14 @@ def get_sam_model_ids():
     return sam_model_ids
 
 def download_model(sam_model_id):
+    """Download SAM model.
+
+    Args:
+        sam_model_id (str): SAM model id
+
+    Returns:
+        str: download status
+    """
     # print(sam_model_id)
     # url_sam_vit_h_4b8939 = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth"
     url_sam = "https://dl.fbaipublicfiles.com/segment_anything/" + sam_model_id
@@ -53,6 +66,14 @@ def download_model(sam_model_id):
         return "Model already exists"
 
 def get_sam_mask_generator(sam_checkpoint):
+    """Get SAM mask generator.
+
+    Args:
+        sam_checkpoint (str): SAM checkpoint path
+
+    Returns:
+        SamAutomaticMaskGenerator or None: SAM mask generator
+    """
     # model_type = "vit_h"
     model_type = os.path.basename(sam_checkpoint)[4:9]
 
@@ -75,6 +96,14 @@ def get_sam_mask_generator(sam_checkpoint):
     return sam_mask_generator
 
 def get_sam_predictor(sam_checkpoint):
+    """Get SAM predictor.
+
+    Args:
+        sam_checkpoint (str): SAM checkpoint path
+
+    Returns:
+        SamPredictor or None: SAM predictor
+    """
     # model_type = "vit_h"
     model_type = os.path.basename(sam_checkpoint)[4:9]
 
@@ -94,6 +123,11 @@ ia_outputs_dir = os.path.join(os.path.dirname(__file__),
 sam_dict = {"sam_masks": None}
 
 def get_model_ids():
+    """Get inpainting model ids list.
+
+    Returns:
+        list: model ids list
+    """
     model_ids = [
         "stabilityai/stable-diffusion-2-inpainting",
         "Uminosachi/revAnimated_v121Inp-inpainting",
