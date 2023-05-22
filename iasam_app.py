@@ -14,6 +14,7 @@ import argparse
 import platform
 from PIL.PngImagePlugin import PngInfo
 import time
+import random
 print("platform:", platform.system())
 
 _USE_HUGGINGFACE = False
@@ -130,9 +131,9 @@ def get_model_ids():
     """
     model_ids = [
         "stabilityai/stable-diffusion-2-inpainting",
-        "Uminosachi/revAnimated_v121Inp-inpainting",
         "Uminosachi/dreamshaper_5-inpainting",
         "saik0s/realistic_vision_inpainting",
+        "Uminosachi/revAnimated_v121Inp-inpainting",
         "parlance/dreamlike-diffusion-1.0-inpainting",
         "runwayml/stable-diffusion-inpainting",
         ]
@@ -289,7 +290,10 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
 
     pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
     # pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
-
+    
+    if seed < 0:
+        seed = random.randint(0, 2147483647)
+    
     if platform.system() == "Darwin":
         pipe = pipe.to("mps")
         pipe.enable_attention_slicing()
@@ -395,10 +399,11 @@ def on_ui_tabs():
                     seed = gr.Slider(
                         label="Seed",
                         elem_id="sd_seed",
-                        minimum=0,
+                        minimum=-1,
                         maximum=2147483647,
                         step=1,
-                        randomize=True,
+                        value=-1,
+                        # randomize=True,
                     )
                 with gr.Row():
                     with gr.Column():
