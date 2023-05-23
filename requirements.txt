@@ -13,3 +13,4 @@ Pillow
 segment-anything
 transformers
 xformers==0.0.19
+lama-cleaner
