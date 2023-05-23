@@ -445,8 +445,17 @@ def run_cleaner(input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk):
     output_image = model(image=init_image, mask=mask_image, config=config)
     # print(output_image.shape, output_image.dtype, np.min(output_image), np.max(output_image))
     output_image = cv2.cvtColor(output_image.astype(np.uint8), cv2.COLOR_BGR2RGB)
+    output_image = Image.fromarray(output_image)
     
-    return Image.fromarray(output_image)
+    if True:
+        if not os.path.isdir(ia_outputs_dir):
+            os.makedirs(ia_outputs_dir, exist_ok=True)
+        save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + os.path.basename(cleaner_model_id) + ".png"
+        save_name = os.path.join(ia_outputs_dir, save_name)
+        output_image.save(save_name)
+    
+    clear_cache()
+    return output_image
 
 def on_ui_tabs():
     sam_model_ids = get_sam_model_ids()
