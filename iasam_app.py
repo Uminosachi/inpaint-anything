@@ -582,7 +582,7 @@ def on_ui_tabs():
                         invert_chk = gr.Checkbox(label="Invert mask", elem_id="invert_chk", show_label=True, interactive=True)
 
                 sel_mask = gr.Image(label="Selected mask image", elem_id="sel_mask", type="numpy", tool="sketch", brush_radius=12,
-                                    interactive=True, ).style(height=480)
+                                    interactive=True).style(height=480)
 
                 with gr.Row():
                     with gr.Column():
