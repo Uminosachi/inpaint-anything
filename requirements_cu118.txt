@@ -1,5 +1,5 @@
 --extra-index-url https://download.pytorch.org/whl/cu118
-torch==2.0.0
+torch==2.0.1
 torchaudio
 torchvision
 accelerate
@@ -13,5 +13,5 @@ opencv-python
 Pillow
 segment-anything
 transformers
-xformers==0.0.19
+xformers==0.0.20
 lama-cleaner
