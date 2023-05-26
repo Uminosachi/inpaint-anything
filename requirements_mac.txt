@@ -1,4 +1,4 @@
-torch==1.13.1
+torch==2.0.1
 torchaudio
 torchvision
 accelerate
@@ -12,5 +12,5 @@ opencv-python
 Pillow
 segment-anything
 transformers
-xformers==0.0.16
+xformers==0.0.20
 lama-cleaner
