@@ -33,7 +33,7 @@ cd inpaint-anything
 pip install -r requirements.txt
 ```
 
-If you are using CUDA 11.7 or CUDA 11.8, please install the following package instead of the previous one:
+  * If you are using CUDA 11.7 or CUDA 11.8, please install the following package instead of the previous one:
 
 ```bash
 pip install -r requirements_cu117.txt
@@ -43,7 +43,7 @@ pip install -r requirements_cu117.txt
 pip install -r requirements_cu118.txt
 ```
 
-If you are using macOS, please install the following package instead of the previous one:
+  * If you are using macOS, please install the following package instead of the previous one:
 
 ```bash
 pip install -r requirements_mac.txt
@@ -62,10 +62,11 @@ python iasam_app.py
 
 To download the model:
 
-1. Launch this application.
-2. Click on the "Download model" button next to the [Segment Anything Model ID](https://github.com/facebookresearch/segment-anything#model-checkpoints).
-3. Wait for the download to complete.
-4. The downloaded model file will be stored in the `models` directory of this application's repository.
+* Launch this application.
+* Click on the "Download model" button next to the [Segment Anything Model ID](https://github.com/facebookresearch/segment-anything#model-checkpoints).
+  * The SAM is available in three sizes. The sizes are: Base < Large < Huge. Please note that larger sizes consume more VRAM.
+* Wait for the download to complete.
+* The downloaded model file will be stored in the `models` directory of this application's repository.
 
 ## Usage
 
