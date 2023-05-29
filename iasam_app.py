@@ -3,7 +3,7 @@ import torch
 import numpy as np
 from PIL import Image
 import gradio as gr
-from diffusers import StableDiffusionInpaintPipeline, DDIMScheduler, UniPCMultistepScheduler
+from diffusers import StableDiffusionInpaintPipeline, DDIMScheduler
 from segment_anything import SamAutomaticMaskGenerator, SamPredictor, sam_model_registry
 from get_dataset_colormap import create_pascal_label_colormap
 from torch.hub import download_url_to_file
@@ -384,7 +384,6 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
     pipe.safety_checker = None
 
     pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
-    # pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
     
     if seed < 0:
         seed = random.randint(0, 2147483647)
@@ -415,29 +414,28 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
     
     output_image = pipe(**pipe_args_dict).images[0]
     
-    if True:
-        generation_params = {
-            "Steps": ddim_steps,
-            "Sampler": pipe.scheduler.__class__.__name__,
-            "CFG scale": cfg_scale,
-            "Seed": seed,
-            "Size": f"{width}x{height}",
-            "Model": model_id,
-            }
+    generation_params = {
+        "Steps": ddim_steps,
+        "Sampler": pipe.scheduler.__class__.__name__,
+        "CFG scale": cfg_scale,
+        "Seed": seed,
+        "Size": f"{width}x{height}",
+        "Model": model_id,
+        }
 
-        generation_params_text = ", ".join([k if k == v else f'{k}: {v}' for k, v in generation_params.items() if v is not None])
-        prompt_text = prompt if prompt else ""
-        negative_prompt_text = "Negative prompt: " + n_prompt if n_prompt else ""
-        infotext = f"{prompt_text}\n{negative_prompt_text}\n{generation_params_text}".strip()
-        
-        metadata = PngInfo()
-        metadata.add_text("parameters", infotext)
-        
-        if not os.path.isdir(ia_outputs_dir):
-            os.makedirs(ia_outputs_dir, exist_ok=True)
-        save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + os.path.basename(model_id) + "_" + str(seed) + ".png"
-        save_name = os.path.join(ia_outputs_dir, save_name)
-        output_image.save(save_name, pnginfo=metadata)
+    generation_params_text = ", ".join([k if k == v else f'{k}: {v}' for k, v in generation_params.items() if v is not None])
+    prompt_text = prompt if prompt else ""
+    negative_prompt_text = "Negative prompt: " + n_prompt if n_prompt else ""
+    infotext = f"{prompt_text}\n{negative_prompt_text}\n{generation_params_text}".strip()
+    
+    metadata = PngInfo()
+    metadata.add_text("parameters", infotext)
+    
+    if not os.path.isdir(ia_outputs_dir):
+        os.makedirs(ia_outputs_dir, exist_ok=True)
+    save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + os.path.basename(model_id) + "_" + str(seed) + ".png"
+    save_name = os.path.join(ia_outputs_dir, save_name)
+    output_image.save(save_name, pnginfo=metadata)
     
     clear_cache()
     return output_image
@@ -447,7 +445,7 @@ def run_cleaner(input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk):
     global sam_dict
     if input_image is None or sam_dict["mask_image"] is None or sel_mask is None:
         return None
-
+    
     mask_image = sam_dict["mask_image"]
     if input_image.shape != mask_image.shape:
         print("The size of image and mask do not match")
@@ -486,13 +484,12 @@ def run_cleaner(input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk):
     # print(output_image.shape, output_image.dtype, np.min(output_image), np.max(output_image))
     output_image = cv2.cvtColor(output_image.astype(np.uint8), cv2.COLOR_BGR2RGB)
     output_image = Image.fromarray(output_image)
-    
-    if True:
-        if not os.path.isdir(ia_outputs_dir):
-            os.makedirs(ia_outputs_dir, exist_ok=True)
-        save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + os.path.basename(cleaner_model_id) + ".png"
-        save_name = os.path.join(ia_outputs_dir, save_name)
-        output_image.save(save_name)
+
+    if not os.path.isdir(ia_outputs_dir):
+        os.makedirs(ia_outputs_dir, exist_ok=True)
+    save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + os.path.basename(cleaner_model_id) + ".png"
+    save_name = os.path.join(ia_outputs_dir, save_name)
+    output_image.save(save_name)
     
     clear_cache()
     return output_image
@@ -578,16 +575,21 @@ def on_ui_tabs():
                     with gr.Column():
                         # expand_iteration = gr.Slider(label="Iterations", elem_id="expand_iteration", minimum=1, maximum=5, value=1,
                         #                              step=1, visible=False)
-                        apply_mask_btn = gr.Button("Apply sketch to mask", elem_id="apply_mask_btn")
+                        apply_mask_btn = gr.Button("Trim mask by sketch", elem_id="apply_mask_btn")
             
             load_model_btn.click(download_model, inputs=[sam_model_id], outputs=[status_text])
             sam_btn.click(run_sam, inputs=[input_image, sam_model_id, sam_image], outputs=[sam_image, status_text])
             select_btn.click(select_mask, inputs=[input_image, sam_image, invert_chk, sel_mask], outputs=[sel_mask])
             expand_mask_btn.click(expand_mask, inputs=[input_image, sel_mask], outputs=[sel_mask])
             apply_mask_btn.click(apply_mask, inputs=[input_image, sel_mask], outputs=[sel_mask])
-            inpaint_btn.click(run_inpaint, inputs=[input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, model_id, save_mask_chk],
-                              outputs=[out_image])
-            cleaner_btn.click(run_cleaner, inputs=[input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk], outputs=[cleaner_out_image])
+            inpaint_btn.click(
+                run_inpaint,
+                inputs=[input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, model_id, save_mask_chk],
+                outputs=[out_image])
+            cleaner_btn.click(
+                run_cleaner,
+                inputs=[input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk],
+                outputs=[cleaner_out_image])
     
     return [(inpaint_anything_interface, "Inpaint Anything", "inpaint_anything")]
 
