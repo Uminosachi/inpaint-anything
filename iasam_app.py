@@ -95,6 +95,16 @@ def convert_model_id_to_hf(sam_model_id):
         "vit_b": "facebook/sam-vit-base",
         }
     hf_model_id = hf_repository.get(model_type, None)
+
+    if hf_model_id is None:
+        for key, value in hf_repository.items():
+            if key in sam_model_id:
+                hf_model_id = value
+                break
+    
+    if hf_model_id is None:
+        raise ValueError(f"{sam_model_id} is not supported")
+
     return hf_model_id
 
 def download_model_from_hf(sam_model_id, local_files_only=False):
