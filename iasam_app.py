@@ -16,11 +16,20 @@ from PIL.PngImagePlugin import PngInfo
 import time
 import random
 import cv2
+import pkg_resources
+from packaging import version
+from huggingface_hub import snapshot_download
 from lama_cleaner.model_manager import ModelManager
 from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
 print("platform:", platform.system())
 
-_USE_HUGGINGFACE = False
+transformers_version = pkg_resources.get_distribution("transformers").version
+
+if version.parse(transformers_version) >= version.parse("4.29.0"):
+    print("transformers version >= 4.29.0 (Use SAM of HuggingFace)")
+    _USE_HUGGINGFACE = True
+else:
+    _USE_HUGGINGFACE = False
 
 if _USE_HUGGINGFACE:
     from transformers import pipeline
@@ -69,6 +78,48 @@ def download_model(sam_model_id):
     else:
         return "Model already exists"
 
+def convert_model_id_to_hf(sam_model_id):
+    """Convert SAM model id to HuggingFace model id.
+
+    Args:
+        sam_model_id (str): SAM model id
+
+    Returns:
+        str: HuggingFace model id
+    """
+    model_type = sam_model_id[4:9]
+
+    hf_repository = {
+        "vit_h": "facebook/sam-vit-huge",
+        "vit_l": "facebook/sam-vit-large",
+        "vit_b": "facebook/sam-vit-base",
+        }
+    hf_model_id = hf_repository.get(model_type, None)
+    return hf_model_id
+
+def download_model_from_hf(sam_model_id, local_files_only=False):
+    """Download SAM model from HuggingFace Hub.
+
+    Args:
+        sam_model_id (str): SAM model id
+        local_files_only (bool, optional): If True, use only local files. Defaults to False.
+
+    Returns:
+        str: download status
+    """
+    hf_model_id = convert_model_id_to_hf(sam_model_id)
+
+    if not local_files_only:
+        print(f"Downloading {hf_model_id}")
+    try:
+        snapshot_download(repo_id=hf_model_id, local_files_only=local_files_only)
+    except FileNotFoundError:
+        return f"{hf_model_id} not found, please download"
+    except Exception as e:
+        return str(e)
+
+    return "Download complete"
+
 def get_sam_mask_generator(sam_checkpoint):
     """Get SAM mask generator.
 
@@ -82,21 +133,26 @@ def get_sam_mask_generator(sam_checkpoint):
     model_type = os.path.basename(sam_checkpoint)[4:9]
 
     if os.path.isfile(sam_checkpoint):
-        if not _USE_HUGGINGFACE:
-            sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
-            sam.to(device=device)
-            sam_mask_generator = SamAutomaticMaskGenerator(sam)
-        else:
-            hf_repository = {
-                "vit_h": "facebook/sam-vit-huge",
-                "vit_l": "facebook/sam-vit-large",
-                "vit_b": "facebook/sam-vit-base",
-                }
-            hf_model_id = hf_repository[model_type]
-            sam_mask_generator = pipeline("mask-generation", model=hf_model_id, device=0)
+        sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+        sam.to(device=device)
+        sam_mask_generator = SamAutomaticMaskGenerator(sam)
     else:
         sam_mask_generator = None
     
+    return sam_mask_generator
+
+def get_sam_mask_generator_from_hf(sam_model_id):
+    """Get SAM mask generator from HuggingFace Hub.
+
+    Args:
+        sam_model_id (str): SAM model id
+
+    Returns:
+        pipeline: SAM mask generator
+    """
+    hf_model_id = convert_model_id_to_hf(sam_model_id)
+    sam_mask_generator = pipeline("mask-generation", model=hf_model_id, device=0)
+
     return sam_mask_generator
 
 def get_sam_predictor(sam_checkpoint):
@@ -174,9 +230,14 @@ def run_sam(input_image, sam_model_id, sam_image):
         sam_dict["sam_masks"] = None
         clear_cache()
     
-    sam_checkpoint = os.path.join(os.path.dirname(__file__), "models", sam_model_id)
-    if not os.path.isfile(sam_checkpoint):
-        return None, f"{sam_model_id} not found, please download"
+    if not _USE_HUGGINGFACE:
+        sam_checkpoint = os.path.join(os.path.dirname(__file__), "models", sam_model_id)
+        if not os.path.isfile(sam_checkpoint):
+            return None, f"{sam_model_id} not found, please download"
+    else:
+        ret_download = download_model_from_hf(sam_model_id, local_files_only=True)
+        if ret_download != "Download complete":
+            return None, ret_download
     
     if input_image is None:
         return None, "Input image not found"
@@ -187,7 +248,10 @@ def run_sam(input_image, sam_model_id, sam_image):
     seg_colormap = [c for c in seg_colormap if max(c) >= 64]
     # print(len(seg_colormap))
     
-    sam_mask_generator = get_sam_mask_generator(sam_checkpoint)
+    if not _USE_HUGGINGFACE:
+        sam_mask_generator = get_sam_mask_generator(sam_checkpoint)
+    else:
+        sam_mask_generator = get_sam_mask_generator_from_hf(sam_model_id)
     print(f"{sam_mask_generator.__class__.__name__} {sam_model_id}")
 
     t1 = time.time()
@@ -220,7 +284,7 @@ def run_sam(input_image, sam_model_id, sam_image):
     if args.save_segment:
         if not os.path.isdir(ia_outputs_dir):
             os.makedirs(ia_outputs_dir, exist_ok=True)
-        save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + os.path.splitext(os.path.basename(sam_checkpoint))[0] + ".png"
+        save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + os.path.splitext(sam_model_id)[0] + ".png"
         save_name = os.path.join(ia_outputs_dir, save_name)
         Image.fromarray(seg_image).save(save_name)
 
@@ -510,6 +574,8 @@ def on_ui_tabs():
                     with gr.Column():
                         sam_model_id = gr.Dropdown(label="Segment Anything Model ID", elem_id="sam_model_id", choices=sam_model_ids,
                                                    value=sam_model_ids[1], show_label=True)
+                        if _USE_HUGGINGFACE:
+                            gr.Markdown("Use SAM of HuggingFace")
                     with gr.Column():
                         with gr.Row():
                             load_model_btn = gr.Button("Download model", elem_id="load_model_btn")
@@ -577,7 +643,11 @@ def on_ui_tabs():
                         #                              step=1, visible=False)
                         apply_mask_btn = gr.Button("Trim mask by sketch", elem_id="apply_mask_btn")
             
-            load_model_btn.click(download_model, inputs=[sam_model_id], outputs=[status_text])
+            if not _USE_HUGGINGFACE:
+                load_model_btn.click(download_model, inputs=[sam_model_id], outputs=[status_text])
+            else:
+                load_model_btn.click(download_model_from_hf, inputs=[sam_model_id], outputs=[status_text])
+
             sam_btn.click(run_sam, inputs=[input_image, sam_model_id, sam_image], outputs=[sam_image, status_text])
             select_btn.click(select_mask, inputs=[input_image, sam_image, invert_chk, sel_mask], outputs=[sel_mask])
             expand_mask_btn.click(expand_mask, inputs=[input_image, sel_mask], outputs=[sel_mask])
