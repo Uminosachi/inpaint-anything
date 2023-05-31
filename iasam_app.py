@@ -1,7 +1,7 @@
 import os
 import torch
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 import gradio as gr
 from diffusers import StableDiffusionInpaintPipeline, DDIMScheduler
 from segment_anything import SamAutomaticMaskGenerator, SamPredictor, sam_model_registry
@@ -357,7 +357,7 @@ def auto_resize_to_pil(input_image, mask_image):
     
     return init_image, mask_image
 
-def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, model_id, save_mask_chk):
+def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, model_id, save_mask_chk, composite_chk):
     clear_cache()
     global sam_dict
     if input_image is None or sam_dict["mask_image"] is None or sel_mask is None:
@@ -414,6 +414,9 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
     
     output_image = pipe(**pipe_args_dict).images[0]
     
+    if composite_chk:
+        output_image = Image.composite(output_image, init_image, mask_image.convert("L").filter(ImageFilter.GaussianBlur(1)))
+
     generation_params = {
         "Steps": ddim_steps,
         "Sampler": pipe.scheduler.__class__.__name__,
@@ -540,9 +543,11 @@ def on_ui_tabs():
                             with gr.Row():
                                 inpaint_btn = gr.Button("Run Inpainting", elem_id="inpaint_btn")
                             with gr.Row():
+                                composite_chk = gr.Checkbox(label="Mask area Only", elem_id="composite_chk", value=False)
                                 save_mask_chk = gr.Checkbox(label="Save mask", elem_id="save_mask_chk", show_label=True, interactive=True)
-                                        
-                    out_image = gr.Image(label="Inpainted image", elem_id="out_image", interactive=False).style(height=480)
+
+                    with gr.Row():
+                        out_image = gr.Image(label="Inpainted image", elem_id="out_image", type="pil", interactive=False).style(height=480)
                 
                 with gr.Tab("Cleaner"):
                     with gr.Row():
@@ -554,7 +559,8 @@ def on_ui_tabs():
                             with gr.Row():
                                 cleaner_save_mask_chk = gr.Checkbox(label="Save mask", elem_id="cleaner_save_mask_chk", show_label=True, interactive=True)
                     
-                    cleaner_out_image = gr.Image(label="Cleaned image", elem_id="cleaner_out_image", interactive=False).style(height=480)
+                    with gr.Row():
+                        cleaner_out_image = gr.Image(label="Cleaned image", elem_id="cleaner_out_image", type="pil", interactive=False).style(height=480)
 
                 
             with gr.Column():
@@ -573,8 +579,6 @@ def on_ui_tabs():
                     with gr.Column():
                         expand_mask_btn = gr.Button("Expand mask region", elem_id="expand_mask_btn")
                     with gr.Column():
-                        # expand_iteration = gr.Slider(label="Iterations", elem_id="expand_iteration", minimum=1, maximum=5, value=1,
-                        #                              step=1, visible=False)
                         apply_mask_btn = gr.Button("Trim mask by sketch", elem_id="apply_mask_btn")
             
             load_model_btn.click(download_model, inputs=[sam_model_id], outputs=[status_text])
@@ -584,7 +588,7 @@ def on_ui_tabs():
             apply_mask_btn.click(apply_mask, inputs=[input_image, sel_mask], outputs=[sel_mask])
             inpaint_btn.click(
                 run_inpaint,
-                inputs=[input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, model_id, save_mask_chk],
+                inputs=[input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, model_id, save_mask_chk, composite_chk],
                 outputs=[out_image])
             cleaner_btn.click(
                 run_cleaner,

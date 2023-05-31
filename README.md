@@ -85,6 +85,7 @@ To download the model:
 * Enter the Prompt and Negative Prompt, Choose the Inpainting Model ID.
 * Click the "Run Inpainting" button (**Please note that it may take some time to download the model for the first time**).
 * You can change the Sampling Steps, the Guidance Scale and the Seed in the Advanced options.
+* If you enable the "Mask Area Only" option, the modifications will be confined to the designated mask area.
 * Inpainting process is performed using [diffusers](https://github.com/huggingface/diffusers).
 
 ### Cleaner Tab
