@@ -498,6 +498,24 @@ def run_cleaner(input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk):
     clear_cache()
     return output_image
 
+def run_get_mask(sel_mask):
+    clear_cache()
+    global sam_dict
+    if sam_dict["mask_image"] is None or sel_mask is None:
+        return None
+    
+    mask_image = sam_dict["mask_image"]
+
+    global ia_outputs_dir    
+    if not os.path.isdir(ia_outputs_dir):
+        os.makedirs(ia_outputs_dir, exist_ok=True)
+    save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + "created_mask" + ".png"
+    save_name = os.path.join(ia_outputs_dir, save_name)
+    Image.fromarray(mask_image).save(save_name)
+    
+    clear_cache()
+    return mask_image
+
 def on_ui_tabs():
     sam_model_ids = get_sam_model_ids()
     model_ids = get_model_ids()
@@ -562,6 +580,12 @@ def on_ui_tabs():
                     with gr.Row():
                         cleaner_out_image = gr.Image(label="Cleaned image", elem_id="cleaner_out_image", type="pil", interactive=False).style(height=480)
 
+                with gr.Tab("Mask only"):
+                    with gr.Row():
+                        get_mask_btn = gr.Button("Get mask", elem_id="get_mask_btn")
+                    
+                    with gr.Row():
+                        mask_out_image = gr.Image(label="Mask image", elem_id="mask_out_image", type="numpy", interactive=False).style(height=480)
                 
             with gr.Column():
                 sam_image = gr.Image(label="Segment Anything image", elem_id="sam_image", type="numpy", tool="sketch", brush_radius=8,
@@ -594,7 +618,11 @@ def on_ui_tabs():
                 run_cleaner,
                 inputs=[input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk],
                 outputs=[cleaner_out_image])
-    
+            get_mask_btn.click(
+                run_get_mask,
+                inputs=[sel_mask],
+                outputs=[mask_out_image])
+            
     return [(inpaint_anything_interface, "Inpaint Anything", "inpaint_anything")]
 
 block, _, _ = on_ui_tabs()[0]

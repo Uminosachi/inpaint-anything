@@ -94,6 +94,10 @@ To download the model:
 * Click on the `Run Cleaner` button (**Please note that it may take some time to download the model for the first time**).
 * Cleaner process is performed using [Lama Cleaner](https://github.com/Sanster/lama-cleaner).
 
+### Mask only Tab
+
+* Gives ability to just save mask without any other processing, so it's then possible to use the mask in other graphic applications.
+
 ![UI image](images/inpaint_anything_ui_image_1.png)
 
 ## Auto-saving images
