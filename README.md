@@ -97,6 +97,8 @@ To download the model:
 ### Mask only Tab
 
 * Gives ability to just save mask without any other processing, so it's then possible to use the mask in other graphic applications.
+* `Get mask as alpha of image` button: Save the mask as RGBA image, with the mask put into the alpha channel of the input image.
+* `Get mask` button: Save the mask as RGB image.
 
 ![UI image](images/inpaint_anything_ui_image_1.png)
 
