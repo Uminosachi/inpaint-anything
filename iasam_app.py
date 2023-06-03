@@ -546,14 +546,14 @@ def run_get_mask(sel_mask):
     if sam_dict["mask_image"] is None or sel_mask is None:
         return None
     
-    mask_image = Image.fromarray(sam_dict["mask_image"])
+    mask_image = sam_dict["mask_image"]
 
     global ia_outputs_dir
     if not os.path.isdir(ia_outputs_dir):
         os.makedirs(ia_outputs_dir, exist_ok=True)
     save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + "created_mask" + ".png"
     save_name = os.path.join(ia_outputs_dir, save_name)
-    mask_image.save(save_name)
+    Image.fromarray(mask_image).save(save_name)
     
     clear_cache()
     return mask_image
@@ -633,7 +633,7 @@ def on_ui_tabs():
                         with gr.Column():
                             alpha_out_image = gr.Image(label="Alpha channel image", elem_id="alpha_out_image", type="pil", interactive=False)
                         with gr.Column():
-                            mask_out_image = gr.Image(label="Mask image", elem_id="mask_out_image", type="pil", interactive=False)
+                            mask_out_image = gr.Image(label="Mask image", elem_id="mask_out_image", type="numpy", interactive=False)
                 
             with gr.Column():
                 sam_image = gr.Image(label="Segment Anything image", elem_id="sam_image", type="numpy", tool="sketch", brush_radius=8,
