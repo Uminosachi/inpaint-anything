@@ -1,7 +1,7 @@
 import os
 import torch
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter, ImageOps
 import gradio as gr
 from diffusers import StableDiffusionInpaintPipeline, DDIMScheduler
 from segment_anything import SamAutomaticMaskGenerator, SamPredictor, sam_model_registry
@@ -200,6 +200,7 @@ def get_model_ids():
     """
     model_ids = [
         "stabilityai/stable-diffusion-2-inpainting",
+        "Uminosachi/dreamshaper_6Inpainting",
         "Uminosachi/dreamshaper_5-inpainting",
         "saik0s/realistic_vision_inpainting",
         "Uminosachi/revAnimated_v121Inp-inpainting",
@@ -431,7 +432,7 @@ def auto_resize_to_pil(input_image, mask_image):
     
     return init_image, mask_image
 
-def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, model_id, save_mask_chk):
+def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, model_id, save_mask_chk, composite_chk):
     clear_cache()
     global sam_dict
     if input_image is None or sam_dict["mask_image"] is None or sel_mask is None:
@@ -488,6 +489,9 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
     
     output_image = pipe(**pipe_args_dict).images[0]
     
+    if composite_chk:
+        output_image = Image.composite(output_image, init_image, mask_image.convert("L").filter(ImageFilter.GaussianBlur(1)))
+
     generation_params = {
         "Steps": ddim_steps,
         "Sampler": pipe.scheduler.__class__.__name__,
@@ -568,6 +572,66 @@ def run_cleaner(input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk):
     clear_cache()
     return output_image
 
+def run_get_alpha_image(input_image, sel_mask):
+    clear_cache()
+    global sam_dict
+    if input_image is None or sam_dict["mask_image"] is None or sel_mask is None:
+        return None
+    
+    mask_image = sam_dict["mask_image"]
+    if input_image.shape != mask_image.shape:
+        print("The size of image and mask do not match")
+        return None
+
+    alpha_image = Image.fromarray(input_image).convert("RGBA")
+    mask_image = Image.fromarray(mask_image).convert("L")
+    
+    alpha_image.putalpha(mask_image)
+    
+    global ia_outputs_dir
+    if not os.path.isdir(ia_outputs_dir):
+        os.makedirs(ia_outputs_dir, exist_ok=True)
+    save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + "rgba_image" + ".png"
+    save_name = os.path.join(ia_outputs_dir, save_name)
+    alpha_image.save(save_name)
+    
+    def make_checkerboard(n_rows, n_columns, square_size):
+        n_rows_, n_columns_ = int(n_rows/square_size + 1), int(n_columns/square_size + 1)
+        rows_grid, columns_grid = np.meshgrid(range(n_rows_), range(n_columns_), indexing='ij')
+        high_res_checkerboard = (np.mod(rows_grid, 2) + np.mod(columns_grid, 2)) == 1
+        square = np.ones((square_size,square_size))
+        checkerboard = np.kron(high_res_checkerboard, square)[:n_rows,:n_columns]
+
+        return checkerboard
+    
+    checkerboard = make_checkerboard(alpha_image.size[1], alpha_image.size[0], 16)
+    checkerboard = np.clip((checkerboard * 255), 128, 192).astype(np.uint8)
+    checkerboard = Image.fromarray(checkerboard).convert("RGBA")
+    checkerboard.putalpha(ImageOps.invert(mask_image))
+    
+    output_image = Image.alpha_composite(alpha_image, checkerboard)
+    
+    clear_cache()
+    return output_image
+
+def run_get_mask(sel_mask):
+    clear_cache()
+    global sam_dict
+    if sam_dict["mask_image"] is None or sel_mask is None:
+        return None
+    
+    mask_image = sam_dict["mask_image"]
+
+    global ia_outputs_dir
+    if not os.path.isdir(ia_outputs_dir):
+        os.makedirs(ia_outputs_dir, exist_ok=True)
+    save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + "created_mask" + ".png"
+    save_name = os.path.join(ia_outputs_dir, save_name)
+    Image.fromarray(mask_image).save(save_name)
+    
+    clear_cache()
+    return mask_image
+
 def on_ui_tabs():
     sam_model_ids = get_sam_model_ids()
     model_ids = get_model_ids()
@@ -607,7 +671,6 @@ def on_ui_tabs():
                             maximum=2147483647,
                             step=1,
                             value=-1,
-                            # randomize=True,
                         )
                     with gr.Row():
                         with gr.Column():
@@ -616,9 +679,11 @@ def on_ui_tabs():
                             with gr.Row():
                                 inpaint_btn = gr.Button("Run Inpainting", elem_id="inpaint_btn")
                             with gr.Row():
+                                composite_chk = gr.Checkbox(label="Mask area Only", elem_id="composite_chk", value=True, show_label=True, interactive=True)
                                 save_mask_chk = gr.Checkbox(label="Save mask", elem_id="save_mask_chk", show_label=True, interactive=True)
-                                        
-                    out_image = gr.Image(label="Inpainted image", elem_id="out_image", interactive=False).style(height=480)
+
+                    with gr.Row():
+                        out_image = gr.Image(label="Inpainted image", elem_id="out_image", type="pil", interactive=False).style(height=480)
                 
                 with gr.Tab("Cleaner"):
                     with gr.Row():
@@ -630,8 +695,21 @@ def on_ui_tabs():
                             with gr.Row():
                                 cleaner_save_mask_chk = gr.Checkbox(label="Save mask", elem_id="cleaner_save_mask_chk", show_label=True, interactive=True)
                     
-                    cleaner_out_image = gr.Image(label="Cleaned image", elem_id="cleaner_out_image", interactive=False).style(height=480)
+                    with gr.Row():
+                        cleaner_out_image = gr.Image(label="Cleaned image", elem_id="cleaner_out_image", type="pil", interactive=False).style(height=480)
 
+                with gr.Tab("Mask only"):
+                    with gr.Row():
+                        with gr.Column():
+                            get_alpha_image_btn = gr.Button("Get mask as alpha of image", elem_id="get_alpha_image_btn")
+                        with gr.Column():
+                            get_mask_btn = gr.Button("Get mask", elem_id="get_mask_btn")
+                    
+                    with gr.Row():
+                        with gr.Column():
+                            alpha_out_image = gr.Image(label="Alpha channel image", elem_id="alpha_out_image", type="pil", interactive=False)
+                        with gr.Column():
+                            mask_out_image = gr.Image(label="Mask image", elem_id="mask_out_image", type="numpy", interactive=False)
                 
             with gr.Column():
                 sam_image = gr.Image(label="Segment Anything image", elem_id="sam_image", type="numpy", tool="sketch", brush_radius=8,
@@ -649,8 +727,6 @@ def on_ui_tabs():
                     with gr.Column():
                         expand_mask_btn = gr.Button("Expand mask region", elem_id="expand_mask_btn")
                     with gr.Column():
-                        # expand_iteration = gr.Slider(label="Iterations", elem_id="expand_iteration", minimum=1, maximum=5, value=1,
-                        #                              step=1, visible=False)
                         apply_mask_btn = gr.Button("Trim mask by sketch", elem_id="apply_mask_btn")
             
             if not _USE_HUGGINGFACE:
@@ -664,13 +740,21 @@ def on_ui_tabs():
             apply_mask_btn.click(apply_mask, inputs=[input_image, sel_mask], outputs=[sel_mask])
             inpaint_btn.click(
                 run_inpaint,
-                inputs=[input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, model_id, save_mask_chk],
+                inputs=[input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, model_id, save_mask_chk, composite_chk],
                 outputs=[out_image])
             cleaner_btn.click(
                 run_cleaner,
                 inputs=[input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk],
                 outputs=[cleaner_out_image])
-    
+            get_alpha_image_btn.click(
+                run_get_alpha_image,
+                inputs=[input_image, sel_mask],
+                outputs=[alpha_out_image])
+            get_mask_btn.click(
+                run_get_mask,
+                inputs=[sel_mask],
+                outputs=[mask_out_image])
+            
     return [(inpaint_anything_interface, "Inpaint Anything", "inpaint_anything")]
 
 block, _, _ = on_ui_tabs()[0]

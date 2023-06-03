@@ -63,7 +63,7 @@ python iasam_app.py
 To download the model:
 
 * Launch this application.
-* Click on the "Download model" button next to the [Segment Anything Model ID](https://github.com/facebookresearch/segment-anything#model-checkpoints).
+* Click on the `Download model` button next to the [Segment Anything Model ID](https://github.com/facebookresearch/segment-anything#model-checkpoints).
   * The SAM is available in three sizes. The sizes are: Base < Large < Huge. Please note that larger sizes consume more VRAM.
 * Wait for the download to complete.
 * The downloaded model file will be stored in the `models` directory of this application's repository.
@@ -71,27 +71,34 @@ To download the model:
 ## Usage
 
 * Drag and drop your image onto the input image area.
-* Click the "Run Segment Anything" button.
+* Click on the `Run Segment Anything` button.
 * Use sketching to point the area you want to inpaint. You can undo and adjust the pen size.
-* Click the "Create mask" button. The mask will appear in the selected mask image area.
+* Click on the `Create mask` button. The mask will appear in the selected mask image area.
 
 ### Mask Adjustment
 
-* "Expand mask region" button: Use this to slightly expand the area of the mask for broader coverage.
-* "Trim mask by sketch" button: Clicking this will exclude the sketched area from the mask.
+* `Expand mask region` button: Use this to slightly expand the area of the mask for broader coverage.
+* `Trim mask by sketch` button: Clicking this will exclude the sketched area from the mask.
 
 ### Inpainting Tab
 
-* Enter the Prompt and Negative Prompt, Choose the Inpainting Model ID.
-* Click the "Run Inpainting" button (**Please note that it may take some time to download the model for the first time**).
-* You can change the Sampling Steps, the Guidance Scale and the Seed in the Advanced options.
+* Enter your desired Prompt and Negative Prompt, then choose the Inpainting Model ID.
+* Click on the `Run Inpainting` button (**Please note that it may take some time to download the model for the first time**).
+* In the Advanced options, you can adjust the Sampling Steps, Guidance Scale, and Seed.
+* If you enable the `Mask area Only` option, modifications will be confined to the designated mask area only.
 * Inpainting process is performed using [diffusers](https://github.com/huggingface/diffusers).
 
 ### Cleaner Tab
 
 * Choose the Cleaner Model ID.
-* Click the "Run Cleaner" button (**Please note that it may take some time to download the model for the first time**).
+* Click on the `Run Cleaner` button (**Please note that it may take some time to download the model for the first time**).
 * Cleaner process is performed using [Lama Cleaner](https://github.com/Sanster/lama-cleaner).
+
+### Mask only Tab
+
+* Gives ability to just save mask without any other processing, so it's then possible to use the mask in other graphic applications.
+* `Get mask as alpha of image` button: Save the mask as RGBA image, with the mask put into the alpha channel of the input image.
+* `Get mask` button: Save the mask as RGB image.
 
 ![UI image](images/inpaint_anything_ui_image_1.png)
 
