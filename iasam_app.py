@@ -650,16 +650,16 @@ def on_ui_tabs():
                 input_image = gr.Image(label="Input image", elem_id="input_image", source="upload", type="numpy", interactive=True)
                 sam_btn = gr.Button("Run Segment Anything", elem_id="sam_btn")
                 
-                with gr.Tab("Inpainting"):
-                    prompt = gr.Textbox(label="Inpainting prompt", elem_id="sd_prompt")
-                    n_prompt = gr.Textbox(label="Negative prompt", elem_id="sd_n_prompt")
-                    with gr.Accordion("Advanced options", open=False):
+                with gr.Tab("Inpainting", elem_id="inpainting_tab"):
+                    prompt = gr.Textbox(label="Inpainting Prompt", elem_id="sd_prompt")
+                    n_prompt = gr.Textbox(label="Negative Prompt", elem_id="sd_n_prompt")
+                    with gr.Accordion("Advanced options", elem_id="inp_advanced_options", open=False):
                         with gr.Row():
                             with gr.Column():
                                 sampler_name = gr.Dropdown(label="Sampler", elem_id="sampler_name", choices=sampler_names,
                                                            value=sampler_names[0], show_label=True)
                             with gr.Column():
-                                ddim_steps = gr.Slider(label="Sampling Steps", elem_id="ddim_steps", minimum=1, maximum=50, value=20, step=1)
+                                ddim_steps = gr.Slider(label="Sampling Steps", elem_id="ddim_steps", minimum=1, maximum=100, value=20, step=1)
                         cfg_scale = gr.Slider(label="Guidance Scale", elem_id="cfg_scale", minimum=0.1, maximum=30.0, value=7.5, step=0.1)
                         seed = gr.Slider(
                             label="Seed",
@@ -682,7 +682,7 @@ def on_ui_tabs():
                     with gr.Row():
                         out_image = gr.Image(label="Inpainted image", elem_id="out_image", type="pil", interactive=False).style(height=480)
                 
-                with gr.Tab("Cleaner"):
+                with gr.Tab("Cleaner", elem_id="cleaner_tab"):
                     with gr.Row():
                         with gr.Column():
                             cleaner_model_id = gr.Dropdown(label="Cleaner Model ID", elem_id="cleaner_model_id", choices=cleaner_model_ids, value=cleaner_model_ids[0], show_label=True)
@@ -695,7 +695,7 @@ def on_ui_tabs():
                     with gr.Row():
                         cleaner_out_image = gr.Image(label="Cleaned image", elem_id="cleaner_out_image", type="pil", interactive=False).style(height=480)
 
-                with gr.Tab("Mask only"):
+                with gr.Tab("Mask only", elem_id="mask_only_tab"):
                     with gr.Row():
                         with gr.Column():
                             get_alpha_image_btn = gr.Button("Get mask as alpha of image", elem_id="get_alpha_image_btn")
