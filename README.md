@@ -33,14 +33,14 @@ cd inpaint-anything
 pip install -r requirements.txt
 ```
 
-  * If you are using CUDA 11.7 or CUDA 11.8, please install the following package instead of the previous one:
-
-```bash
-pip install -r requirements_cu117.txt
-```
+  * If you are using a CUDA environment, please install the following package instead of the previous one:
 
 ```bash
 pip install -r requirements_cu118.txt
+```
+
+```bash
+pip install -r requirements_cu117.txt
 ```
 
   * If you are using macOS, please install the following package instead of the previous one:
