@@ -165,6 +165,24 @@ ia_outputs_dir = os.path.join(os.path.dirname(__file__),
 
 sam_dict = dict(sam_masks=None, mask_image=None, cnet=None)
 
+def save_mask_image(mask_image, save_mask_chk=False):
+    """Save mask image.
+    
+    Args:
+        mask_image (np.ndarray): mask image
+        save_mask_chk (bool, optional): If True, save mask image. Defaults to False.
+    
+    Returns:
+        None
+    """
+    global ia_outputs_dir
+    if save_mask_chk:
+        if not os.path.isdir(ia_outputs_dir):
+            os.makedirs(ia_outputs_dir, exist_ok=True)
+        save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + "created_mask" + ".png"
+        save_name = os.path.join(ia_outputs_dir, save_name)
+        Image.fromarray(mask_image).save(save_name)
+
 def get_model_ids():
     """Get inpainting model ids list.
 
@@ -272,7 +290,6 @@ def run_sam(input_image, sam_model_id, sam_image):
     sam_dict["sam_masks"] = sam_masks
 
     del sam_mask_generator
-    clear_cache()
     if sam_image is None:
         return seg_image, "Segment Anything complete"
     else:
@@ -415,14 +432,8 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
         return None
 
     global ia_outputs_dir
-    if save_mask_chk:
-        if not os.path.isdir(ia_outputs_dir):
-            os.makedirs(ia_outputs_dir, exist_ok=True)
-        save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + "created_mask" + ".png"
-        save_name = os.path.join(ia_outputs_dir, save_name)
-        Image.fromarray(mask_image).save(save_name)
+    save_mask_image(mask_image, save_mask_chk)
 
-    print(model_id)
     config_offline_inpainting = args.offline
     if config_offline_inpainting:
         print("Enable offline network Inpainting:", config_offline_inpainting)
@@ -437,6 +448,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
     else:
         local_files_only = True
     
+    print(model_id)
     if platform.system() == "Darwin":
         torch_dtype = torch.float32
     else:
@@ -453,11 +465,9 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
                     pipe = StableDiffusionInpaintPipeline.from_pretrained(model_id, torch_dtype=torch_dtype, force_download=True)
                 except Exception as e:
                     print(e)
-                    clear_cache()
                     return None
         else:
             print(e)
-            clear_cache()
             return None
     pipe.safety_checker = None
 
@@ -531,7 +541,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
     save_name = os.path.join(ia_outputs_dir, save_name)
     output_image.save(save_name, pnginfo=metadata)
     
-    clear_cache()
+    del pipe
     return output_image
 
 def run_cleaner(input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk):
@@ -546,12 +556,7 @@ def run_cleaner(input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk):
         return None
 
     global ia_outputs_dir
-    if cleaner_save_mask_chk:
-        if not os.path.isdir(ia_outputs_dir):
-            os.makedirs(ia_outputs_dir, exist_ok=True)
-        save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + "created_mask" + ".png"
-        save_name = os.path.join(ia_outputs_dir, save_name)
-        Image.fromarray(mask_image).save(save_name)
+    save_mask_image(mask_image, cleaner_save_mask_chk)
 
     print(cleaner_model_id)
     model = ModelManager(name=cleaner_model_id, device=device)
@@ -585,7 +590,7 @@ def run_cleaner(input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk):
     save_name = os.path.join(ia_outputs_dir, save_name)
     output_image.save(save_name)
     
-    clear_cache()
+    del model
     return output_image
 
 def run_get_alpha_image(input_image, sel_mask):
