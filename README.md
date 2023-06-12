@@ -13,37 +13,27 @@ Using Segment Anything enables users to specify masks by simply pointing to the 
 
 Please follow these steps to install the software:
 
-1. Create a new conda environment:
+* Create a new conda environment:
 
 ```bash
 conda create -n inpaint python=3.10
 conda activate inpaint
 ```
 
-2. Clone the software repository:
+* Clone the software repository:
 
 ```bash
 git clone https://github.com/Uminosachi/inpaint-anything.git
 cd inpaint-anything
 ```
 
-3. Install the required Python packages:
+* For the CUDA environment, install the following packages:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-  * If you are using a CUDA environment, please install the following package instead of the previous one:
-
-```bash
-pip install -r requirements_cu118.txt
-```
-
-```bash
-pip install -r requirements_cu117.txt
-```
-
-  * If you are using macOS, please install the following package instead of the previous one:
+* If you are using macOS, please install the package from the following file instead:
 
 ```bash
 pip install -r requirements_mac.txt
@@ -84,7 +74,7 @@ To download the model:
 
 * Enter your desired Prompt and Negative Prompt, then choose the Inpainting Model ID.
 * Click on the `Run Inpainting` button (**Please note that it may take some time to download the model for the first time**).
-* In the Advanced options, you can adjust the Sampling Steps, Guidance Scale, and Seed.
+* In the Advanced options, you can adjust the Sampler, Sampling Steps, Guidance Scale, and Seed.
 * If you enable the `Mask area Only` option, modifications will be confined to the designated mask area only.
 * Inpainting process is performed using [diffusers](https://github.com/huggingface/diffusers).
 * Tips: You can directly drag and drop the inpainted image into the input image field on the Web UI.

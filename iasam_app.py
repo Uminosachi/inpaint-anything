@@ -227,7 +227,7 @@ def clear_cache():
     torch_gc()
 
 def sleep_clear_cache():
-    time.sleep(0.3)
+    time.sleep(0.1)
     clear_cache()
 
 def run_sam(input_image, sam_model_id, sam_image):
@@ -453,7 +453,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
         torch_dtype = torch.float32
     else:
         torch_dtype = torch.float16
-
+    
     try:
         pipe = StableDiffusionInpaintPipeline.from_pretrained(model_id, torch_dtype=torch_dtype, local_files_only=local_files_only)
     except Exception as e:
