@@ -19,6 +19,9 @@ import cv2
 from huggingface_hub import snapshot_download
 from lama_cleaner.model_manager import ModelManager
 from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
+from segment_anything_hq import sam_model_registry as sam_model_registry_hq
+from segment_anything_hq import SamAutomaticMaskGenerator as SamAutomaticMaskGeneratorHQ
+from segment_anything_hq import SamPredictor as SamPredictorHQ
 print("platform:", platform.system())
 
 _USE_HUGGINGFACE = False
@@ -60,6 +63,9 @@ def get_sam_model_ids():
         "sam_vit_h_4b8939.pth",
         "sam_vit_l_0b3195.pth",
         "sam_vit_b_01ec64.pth",
+        "sam_hq_vit_h.pth",
+        "sam_hq_vit_l.pth",
+        "sam_hq_vit_b.pth",
         ]
     return sam_model_ids
 
@@ -73,8 +79,11 @@ def download_model(sam_model_id):
         str: download status
     """
     # print(sam_model_id)
-    # url_sam_vit_h_4b8939 = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth"
-    url_sam = "https://dl.fbaipublicfiles.com/segment_anything/" + sam_model_id
+    if "_hq_" in sam_model_id:
+        url_sam = "https://huggingface.co/Uminosachi/sam-hq/resolve/main/" + sam_model_id
+    else:
+        # url_sam_vit_h_4b8939 = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth"
+        url_sam = "https://dl.fbaipublicfiles.com/segment_anything/" + sam_model_id
     models_dir = os.path.join(os.path.dirname(__file__), "models")
     sam_checkpoint = os.path.join(models_dir, sam_model_id)
     if not os.path.isfile(sam_checkpoint):
@@ -118,13 +127,20 @@ def get_sam_mask_generator(sam_checkpoint):
         SamAutomaticMaskGenerator or None: SAM mask generator
     """
     # model_type = "vit_h"
-    model_type = os.path.basename(sam_checkpoint)[4:9]
+    if "_hq_" in os.path.basename(sam_checkpoint):
+        model_type = os.path.basename(sam_checkpoint)[7:12]
+        sam_model_registry_local = sam_model_registry_hq
+        SamAutomaticMaskGeneratorLocal = SamAutomaticMaskGeneratorHQ
+    else:
+        model_type = os.path.basename(sam_checkpoint)[4:9]
+        sam_model_registry_local = sam_model_registry
+        SamAutomaticMaskGeneratorLocal = SamAutomaticMaskGenerator
 
     if os.path.isfile(sam_checkpoint):
         if not _USE_HUGGINGFACE:
-            sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+            sam = sam_model_registry_local[model_type](checkpoint=sam_checkpoint)
             sam.to(device=device)
-            sam_mask_generator = SamAutomaticMaskGenerator(sam)
+            sam_mask_generator = SamAutomaticMaskGeneratorLocal(sam)
         else:
             hf_repository = {
                 "vit_h": "facebook/sam-vit-huge",
@@ -148,12 +164,19 @@ def get_sam_predictor(sam_checkpoint):
         SamPredictor or None: SAM predictor
     """
     # model_type = "vit_h"
-    model_type = os.path.basename(sam_checkpoint)[4:9]
+    if "_hq_" in os.path.basename(sam_checkpoint):
+        model_type = os.path.basename(sam_checkpoint)[7:12]
+        sam_model_registry_local = sam_model_registry_hq
+        SamPredictorLocal = SamPredictorHQ
+    else:
+        model_type = os.path.basename(sam_checkpoint)[4:9]
+        sam_model_registry_local = sam_model_registry
+        SamPredictorLocal = SamPredictor
 
     if os.path.isfile(sam_checkpoint):
-        sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+        sam = sam_model_registry_local[model_type](checkpoint=sam_checkpoint)
         sam.to(device=device)
-        sam_predictor = SamPredictor(sam)
+        sam_predictor = SamPredictorLocal(sam)
     else:
         sam_predictor = None
     
@@ -656,6 +679,7 @@ def run_get_mask(sel_mask):
 def on_ui_tabs():
     sampler_names = get_sampler_names()
     sam_model_ids = get_sam_model_ids()
+    sam_model_index =  sam_model_ids.index("sam_vit_l_0b3195.pth") if "sam_vit_l_0b3195.pth" in sam_model_ids else 1
     model_ids = get_model_ids()
     cleaner_model_ids = get_cleaner_model_ids()
 
@@ -669,7 +693,7 @@ def on_ui_tabs():
                 with gr.Row():
                     with gr.Column():
                         sam_model_id = gr.Dropdown(label="Segment Anything Model ID", elem_id="sam_model_id", choices=sam_model_ids,
-                                                   value=sam_model_ids[1], show_label=True)
+                                                   value=sam_model_ids[sam_model_index], show_label=True)
                     with gr.Column():
                         with gr.Row():
                             load_model_btn = gr.Button("Download model", elem_id="load_model_btn")

@@ -53,8 +53,9 @@ python iasam_app.py
 To download the model:
 
 * Launch this application.
-* Click on the `Download model` button next to the [Segment Anything Model ID](https://github.com/facebookresearch/segment-anything#model-checkpoints).
+* Click on the `Download model` button located next to the [Segment Anything Model ID](https://github.com/facebookresearch/segment-anything#model-checkpoints) that include [Segment Anything in High Quality Model ID](https://github.com/SysCV/sam-hq).
   * The SAM is available in three sizes. The sizes are: Base < Large < Huge. Please note that larger sizes consume more VRAM.
+  * The HQ-SAM requires more VRAM than Facebook's SAM.
 * Wait for the download to complete.
 * The downloaded model file will be stored in the `models` directory of this application's repository.
 
@@ -102,3 +103,8 @@ To download the model:
 ## License
 
 The source code is licensed under the [Apache 2.0 license](LICENSE).
+
+## Reference
+
+* Kirillov, A., Mintun, E., Ravi, N., Mao, H., Rolland, C., Gustafson, L., Xiao, T., Whitehead, S., Berg, A. C., Lo, W-Y., Dollár, P., & Girshick, R. (2023). [Segment Anything](https://arxiv.org/abs/2304.02643). arXiv:2304.02643.
+* Ke, L., Ye, M., Danelljan, M., Liu, Y., Tai, Y-W., Tang, C-K., & Yu, F. (2023). [Segment Anything in High Quality](https://arxiv.org/abs/2306.01567). arXiv:2306.01567.
