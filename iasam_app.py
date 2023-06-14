@@ -131,16 +131,18 @@ def get_sam_mask_generator(sam_checkpoint):
         model_type = os.path.basename(sam_checkpoint)[7:12]
         sam_model_registry_local = sam_model_registry_hq
         SamAutomaticMaskGeneratorLocal = SamAutomaticMaskGeneratorHQ
+        points_per_batch = 32
     else:
         model_type = os.path.basename(sam_checkpoint)[4:9]
         sam_model_registry_local = sam_model_registry
         SamAutomaticMaskGeneratorLocal = SamAutomaticMaskGenerator
+        points_per_batch = 64
 
     if os.path.isfile(sam_checkpoint):
         if not _USE_HUGGINGFACE:
             sam = sam_model_registry_local[model_type](checkpoint=sam_checkpoint)
             sam.to(device=device)
-            sam_mask_generator = SamAutomaticMaskGeneratorLocal(sam)
+            sam_mask_generator = SamAutomaticMaskGeneratorLocal(sam, points_per_batch=points_per_batch)
         else:
             hf_repository = {
                 "vit_h": "facebook/sam-vit-huge",
