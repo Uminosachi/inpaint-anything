@@ -23,6 +23,7 @@ from segment_anything_hq import sam_model_registry as sam_model_registry_hq
 from segment_anything_hq import SamAutomaticMaskGenerator as SamAutomaticMaskGeneratorHQ
 from segment_anything_hq import SamPredictor as SamPredictorHQ
 from ia_logging import ia_logging
+from ia_ui_items import (get_sampler_names, get_sam_model_ids, get_model_ids, get_cleaner_model_ids, get_padding_mode_names)
 print("platform:", platform.system())
 
 parser = argparse.ArgumentParser(description="Inpaint Anything")
@@ -33,37 +34,6 @@ args = parser.parse_args()
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 _DOWNLOAD_COMPLETE = "Download complete"
-
-def get_sampler_names():
-    """Get sampler name list.
-
-    Returns:
-        list: sampler name list
-    """
-    sampler_names = [
-        "DDIM",
-        "Euler",
-        "Euler a",
-        "DPM2 Karras",
-        "DPM2 a Karras",
-        ]
-    return sampler_names
-
-def get_sam_model_ids():
-    """Get SAM model ids list.
-
-    Returns:
-        list: SAM model ids list
-    """
-    sam_model_ids = [
-        "sam_vit_h_4b8939.pth",
-        "sam_vit_l_0b3195.pth",
-        "sam_vit_b_01ec64.pth",
-        "sam_hq_vit_h.pth",
-        "sam_hq_vit_l.pth",
-        "sam_hq_vit_b.pth",
-        ]
-    return sam_model_ids
 
 def download_model(sam_model_id):
     """Download SAM model.
@@ -201,40 +171,6 @@ def save_mask_image(mask_image, save_mask_chk=False):
         save_name = os.path.join(ia_outputs_dir, save_name)
         Image.fromarray(mask_image).save(save_name)
 
-def get_model_ids():
-    """Get inpainting model ids list.
-
-    Returns:
-        list: model ids list
-    """
-    model_ids = [
-        "stabilityai/stable-diffusion-2-inpainting",
-        "Uminosachi/dreamshaper_6Inpainting",
-        "Uminosachi/dreamshaper_5-inpainting",
-        "Uminosachi/Deliberate-inpainting",
-        "saik0s/realistic_vision_inpainting",
-        "Uminosachi/revAnimated_v121Inp-inpainting",
-        "parlance/dreamlike-diffusion-1.0-inpainting",
-        "runwayml/stable-diffusion-inpainting",
-        ]
-    return model_ids
-
-def get_cleaner_model_ids():
-    """Get cleaner model ids list.
-
-    Returns:
-        list: model ids list
-    """
-    model_ids = [
-        "lama",
-        "ldm",
-        "zits",
-        "mat",
-        "fcf",
-        "manga",
-        ]
-    return model_ids
-
 def torch_gc():
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -247,6 +183,46 @@ def clear_cache():
 def sleep_clear_cache():
     time.sleep(0.1)
     clear_cache()
+
+def input_image_upload(input_image):
+    clear_cache()
+    global sam_dict
+    sam_dict["orig_image"] = input_image
+    sam_dict["pad_mask"] = None
+
+def run_padding(input_image, pad_scale_width, pad_scale_height, pad_lr_barance, pad_tb_barance, padding_mode="edge"):
+    clear_cache()
+    global sam_dict
+    if input_image is None or sam_dict["orig_image"] is None:
+        sam_dict["orig_image"] = None
+        sam_dict["pad_mask"] = None
+        return None, "Input image not found"
+
+    orig_image = sam_dict["orig_image"]
+
+    height, width = orig_image.shape[:2]
+    pad_width, pad_height = (int(width * pad_scale_width), int(height * pad_scale_height))
+    ia_logging.info(f"resize by padding: ({height}, {width}) -> ({pad_height}, {pad_width})")
+
+    pad_size_w, pad_size_h = (pad_width - width, pad_height - height)
+    pad_size_l = int(pad_size_w * pad_lr_barance)
+    pad_size_r = pad_size_w - pad_size_l
+    pad_size_t = int(pad_size_h * pad_tb_barance)
+    pad_size_b = pad_size_h - pad_size_t
+    
+    pad_width=[(pad_size_t, pad_size_b), (pad_size_l, pad_size_r), (0, 0)]
+    if padding_mode == "constant":
+        fill_value = 127
+        pad_image = np.pad(orig_image, pad_width=pad_width, mode=padding_mode, constant_values=fill_value)
+    else:
+        pad_image = np.pad(orig_image, pad_width=pad_width, mode=padding_mode)
+
+    mask_pad_width = [(pad_size_t, pad_size_b), (pad_size_l, pad_size_r)]
+    pad_mask = np.zeros((height, width), dtype=np.uint8)
+    pad_mask = np.pad(pad_mask, pad_width=mask_pad_width, mode="constant", constant_values=255)
+    sam_dict["pad_mask"] = dict(segmentation=pad_mask.astype(bool))
+
+    return pad_image, "Padding done"
 
 def run_sam(input_image, sam_model_id, sam_image):
     clear_cache()
@@ -273,14 +249,18 @@ def run_sam(input_image, sam_model_id, sam_image):
     ia_logging.info(f"{sam_mask_generator.__class__.__name__} {sam_model_id}")
     sam_masks = sam_mask_generator.generate(input_image)
 
-    canvas_image = np.zeros_like(input_image)
+    canvas_image = np.zeros_like(input_image, dtype=np.uint8)
 
     ia_logging.info("sam_masks: {}".format(len(sam_masks)))
-    sam_masks = sorted(sam_masks, key=lambda x: np.sum(x.get("segmentation").astype(int)))
+    sam_masks = sorted(sam_masks, key=lambda x: np.sum(x.get("segmentation").astype(np.uint32)))
+    if sam_dict["pad_mask"] is not None:
+        if len(sam_masks) > 0 and sam_masks[0]["segmentation"].shape == sam_dict["pad_mask"]["segmentation"].shape:
+            sam_masks.insert(0, sam_dict["pad_mask"])
+            ia_logging.info("insert pad_mask to sam_masks")
     sam_masks = sam_masks[:len(seg_colormap)]
     for idx, seg_dict in enumerate(sam_masks):
-        seg_mask = np.expand_dims(seg_dict.get("segmentation").astype(int), axis=-1)
-        canvas_mask = np.logical_not(np.sum(canvas_image, axis=-1, keepdims=True).astype(bool)).astype(int)
+        seg_mask = np.expand_dims(seg_dict["segmentation"].astype(np.uint8), axis=-1)
+        canvas_mask = np.logical_not(canvas_image.astype(bool).any(axis=-1, keepdims=True)).astype(np.uint8)
         seg_color = seg_colormap[idx] * seg_mask * canvas_mask
         canvas_image = canvas_image + seg_color
     seg_image = canvas_image.astype(np.uint8)
@@ -314,18 +294,18 @@ def select_mask(input_image, sam_image, invert_chk, sel_mask):
     image = sam_image["image"]
     mask = sam_image["mask"][:,:,0:3]
     
-    canvas_image = np.zeros_like(image)
-    mask_region = np.zeros_like(image)
+    canvas_image = np.zeros_like(image, dtype=np.uint8)
+    mask_region = np.zeros_like(image, dtype=np.uint8)
     for idx, seg_dict in enumerate(sam_masks):
-        seg_mask = np.expand_dims(seg_dict["segmentation"].astype(int), axis=-1)
-        canvas_mask = np.logical_not(np.sum(canvas_image, axis=-1, keepdims=True).astype(bool)).astype(int)
+        seg_mask = np.expand_dims(seg_dict["segmentation"].astype(np.uint8), axis=-1)
+        canvas_mask = np.logical_not(canvas_image.astype(bool).any(axis=-1, keepdims=True)).astype(np.uint8)
         if (seg_mask * canvas_mask * mask).astype(bool).any():
             mask_region = mask_region + (seg_mask * canvas_mask * 255)
         # seg_color = seg_colormap[idx] * seg_mask * canvas_mask
         seg_color = [127, 127, 127] * seg_mask * canvas_mask
         canvas_image = canvas_image + seg_color
     
-    canvas_mask = np.logical_not(np.sum(canvas_image, axis=-1, keepdims=True).astype(bool)).astype(int)
+    canvas_mask = np.logical_not(canvas_image.astype(bool).any(axis=-1, keepdims=True)).astype(np.uint8)
     if (canvas_mask * mask).astype(bool).any():
         mask_region = mask_region + (canvas_mask * 255)
     
@@ -402,7 +382,6 @@ def auto_resize_to_pil(input_image, mask_image):
     init_image = Image.fromarray(input_image).convert("RGB")
     mask_image = Image.fromarray(mask_image).convert("RGB")
     assert init_image.size == mask_image.size, "The size of image and mask do not match"
-    # print(init_image.size, mask_image.size)
     width, height = init_image.size
 
     new_height = (height // 8) * 8
@@ -412,10 +391,12 @@ def auto_resize_to_pil(input_image, mask_image):
             scale = new_height / height
         else:
             scale = new_width / width
-        ia_logging.info(f"resize: ({height}, {width}) -> ({int(height*scale+0.5)}, {int(width*scale+0.5)})")
-        init_image = transforms.functional.resize(init_image, (int(height*scale+0.5), int(width*scale+0.5)), transforms.InterpolationMode.LANCZOS)
-        mask_image = transforms.functional.resize(mask_image, (int(height*scale+0.5), int(width*scale+0.5)), transforms.InterpolationMode.LANCZOS)
-        ia_logging.info(f"center_crop: ({int(height*scale+0.5)}, {int(width*scale+0.5)}) -> ({new_height}, {new_width})")
+        resize_height = int(height*scale+0.5)
+        resize_width = int(width*scale+0.5)
+        ia_logging.info(f"resize: ({height}, {width}) -> ({resize_height}, {resize_width})")
+        init_image = transforms.functional.resize(init_image, (resize_height, resize_width), transforms.InterpolationMode.LANCZOS)
+        mask_image = transforms.functional.resize(mask_image, (resize_height, resize_width), transforms.InterpolationMode.LANCZOS)
+        ia_logging.info(f"center_crop: ({resize_height}, {resize_width}) -> ({new_height}, {new_width})")
         init_image = transforms.functional.center_crop(init_image, (new_height, new_width))
         mask_image = transforms.functional.center_crop(mask_image, (new_height, new_width))
         assert init_image.size == mask_image.size, "The size of image and mask do not match"
@@ -518,7 +499,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
     output_image = pipe(**pipe_args_dict).images[0]
     
     if composite_chk:
-        mask_image = Image.fromarray(cv2.dilate(np.array(mask_image), np.ones((3, 3), dtype=np.uint8), iterations=3))
+        mask_image = Image.fromarray(cv2.dilate(np.array(mask_image), np.ones((3, 3), dtype=np.uint8), iterations=4))
         output_image = Image.composite(output_image, init_image, mask_image.convert("L").filter(ImageFilter.GaussianBlur(3)))
 
     generation_params = {
@@ -665,6 +646,7 @@ def on_ui_tabs():
     sam_model_index =  sam_model_ids.index("sam_vit_l_0b3195.pth") if "sam_vit_l_0b3195.pth" in sam_model_ids else 1
     model_ids = get_model_ids()
     cleaner_model_ids = get_cleaner_model_ids()
+    padding_mode_names = get_padding_mode_names()
 
     block = gr.Blocks().queue()
     block.title = "Inpaint Anything"
@@ -682,8 +664,29 @@ def on_ui_tabs():
                             load_model_btn = gr.Button("Download model", elem_id="load_model_btn")
                         with gr.Row():
                             status_text = gr.Textbox(label="", max_lines=1, show_label=False, interactive=False)
-                input_image = gr.Image(label="Input image", elem_id="input_image", source="upload", type="numpy", interactive=True)
-                sam_btn = gr.Button("Run Segment Anything", elem_id="sam_btn")
+                with gr.Row():
+                    input_image = gr.Image(label="Input image", elem_id="input_image", source="upload", type="numpy", interactive=True)
+                
+                with gr.Row():
+                    with gr.Accordion("Padding options", elem_id="padding_options", open=False):
+                        with gr.Row():
+                            with gr.Column():
+                                pad_scale_width = gr.Slider(label="Scale Width", elem_id="pad_scale_width", minimum=1.0, maximum=1.5, value=1.0, step=0.01)
+                            with gr.Column():
+                                pad_lr_barance = gr.Slider(label="Left/Right Balance", elem_id="pad_lr_barance", minimum=0.0, maximum=1.0, value=0.5, step=0.01)
+                        with gr.Row():
+                            with gr.Column():
+                                pad_scale_height = gr.Slider(label="Scale Height", elem_id="pad_scale_height", minimum=1.0, maximum=1.5, value=1.0, step=0.01)
+                            with gr.Column():
+                                pad_tb_barance = gr.Slider(label="Top/Bottom Balance", elem_id="pad_tb_barance", minimum=0.0, maximum=1.0, value=0.5, step=0.01)
+                        with gr.Row():
+                            with gr.Column():
+                                padding_mode = gr.Dropdown(label="Padding Mode", elem_id="padding_mode", choices=padding_mode_names, value="edge")
+                            with gr.Column():
+                                padding_btn = gr.Button("Run Padding", elem_id="padding_btn")
+                
+                with gr.Row():
+                    sam_btn = gr.Button("Run Segment Anything", elem_id="sam_btn")
                 
                 with gr.Tab("Inpainting", elem_id="inpainting_tab"):
                     prompt = gr.Textbox(label="Inpainting Prompt", elem_id="sd_prompt")
@@ -742,7 +745,7 @@ def on_ui_tabs():
                             alpha_out_image = gr.Image(label="Alpha channel image", elem_id="alpha_out_image", type="pil", interactive=False)
                         with gr.Column():
                             mask_out_image = gr.Image(label="Mask image", elem_id="mask_out_image", type="numpy", interactive=False)
-                
+
             with gr.Column():
                 sam_image = gr.Image(label="Segment Anything image", elem_id="sam_image", type="numpy", tool="sketch", brush_radius=8,
                                      interactive=True).style(height=480)
@@ -762,10 +765,14 @@ def on_ui_tabs():
                         apply_mask_btn = gr.Button("Trim mask by sketch", elem_id="apply_mask_btn")
             
             load_model_btn.click(download_model, inputs=[sam_model_id], outputs=[status_text])
+            input_image.upload(input_image_upload, inputs=[input_image], outputs=None)
+            padding_btn.click(run_padding, inputs=[input_image, pad_scale_width, pad_scale_height, pad_lr_barance, pad_tb_barance, padding_mode], outputs=[input_image, status_text])
             sam_btn.click(run_sam, inputs=[input_image, sam_model_id, sam_image], outputs=[sam_image, status_text]).then(
                 fn=sleep_clear_cache, inputs=None, outputs=None)
             select_btn.click(select_mask, inputs=[input_image, sam_image, invert_chk, sel_mask], outputs=[sel_mask])
+            
             expand_mask_btn.click(expand_mask, inputs=[input_image, sel_mask], outputs=[sel_mask])
+            
             apply_mask_btn.click(apply_mask, inputs=[input_image, sel_mask], outputs=[sel_mask])
             inpaint_btn.click(
                 run_inpaint,
