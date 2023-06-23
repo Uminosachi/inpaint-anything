@@ -14,3 +14,4 @@ segment-anything
 transformers
 xformers==0.0.20
 lama-cleaner
+ultralytics
