@@ -37,7 +37,7 @@ class FastSamAutomaticMaskGenerator:
         height, width = image.shape[:2]
         new_height = math.ceil(height / 32) * 32
         new_width = math.ceil(width / 32) * 32
-        resize_image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_LANCZOS4)
+        resize_image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
 
         results = self.model(
             source=resize_image,
@@ -56,9 +56,9 @@ class FastSamAutomaticMaskGenerator:
         
         annotations_list = []
         for i, mask in enumerate(annotations):
-            mask = cv2.resize(mask, (width, height), interpolation=cv2.INTER_AREA)
             mask = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
             mask = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_OPEN, np.ones((7, 7), np.uint8))
+            mask = cv2.resize(mask, (width, height), interpolation=cv2.INTER_AREA)
             
             annotations_list.append(dict(segmentation=mask.astype(bool)))
 
