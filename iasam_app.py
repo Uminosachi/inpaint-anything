@@ -25,6 +25,9 @@ from segment_anything_hq import SamPredictor as SamPredictorHQ
 from ia_logging import ia_logging
 from ia_ui_items import (get_sampler_names, get_sam_model_ids, get_model_ids, get_cleaner_model_ids, get_padding_mode_names)
 from fast_sam import FastSamAutomaticMaskGenerator, fast_sam_model_registry
+import threading
+import math
+import copy
 print("platform:", platform.system())
 
 parser = argparse.ArgumentParser(description="Inpaint Anything")
@@ -45,7 +48,6 @@ def download_model(sam_model_id):
     Returns:
         str: download status
     """
-    # print(sam_model_id)
     if "_hq_" in sam_model_id:
         url_sam = "https://huggingface.co/Uminosachi/sam-hq/resolve/main/" + sam_model_id
     elif "FastSAM" in sam_model_id:
@@ -251,11 +253,15 @@ def run_sam(input_image, sam_model_id, sam_image):
     cm_pascal = create_pascal_label_colormap()
     seg_colormap = cm_pascal
     seg_colormap = [c for c in seg_colormap if max(c) >= 64]
-    # print(len(seg_colormap))
     
     sam_mask_generator = get_sam_mask_generator(sam_checkpoint)
     ia_logging.info(f"{sam_mask_generator.__class__.__name__} {sam_model_id}")
-    sam_masks = sam_mask_generator.generate(input_image)
+    try:
+        sam_masks = sam_mask_generator.generate(input_image)
+    except Exception as e:
+        ia_logging.error(str(e))
+        del sam_mask_generator
+        return None, "SAM generate failed"
 
     canvas_image = np.zeros_like(input_image, dtype=np.uint8)
 
@@ -281,7 +287,7 @@ def run_sam(input_image, sam_model_id, sam_image):
         save_name = os.path.join(ia_outputs_dir, save_name)
         Image.fromarray(seg_image).save(save_name)
 
-    sam_dict["sam_masks"] = sam_masks
+    sam_dict["sam_masks"] = copy.deepcopy(sam_masks)
 
     del sam_mask_generator
     if sam_image is None:
@@ -575,7 +581,6 @@ def run_cleaner(input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk):
     )
     
     output_image = model(image=init_image, mask=mask_image, config=config)
-    # print(output_image.shape, output_image.dtype, np.min(output_image), np.max(output_image))
     output_image = cv2.cvtColor(output_image.astype(np.uint8), cv2.COLOR_BGR2RGB)
     output_image = Image.fromarray(output_image)
 
