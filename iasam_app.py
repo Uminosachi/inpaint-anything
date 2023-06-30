@@ -195,11 +195,16 @@ def sleep_clear_cache():
     time.sleep(0.1)
     clear_cache()
 
-def input_image_upload(input_image):
+def input_image_upload(input_image, sam_image, sel_mask):
     clear_cache()
     global sam_dict
     sam_dict["orig_image"] = input_image
     sam_dict["pad_mask"] = None
+
+    ret_sam_image = np.zeros_like(input_image, dtype=np.uint8) if sam_image is None else gr.update()
+    ret_sel_mask = np.zeros_like(input_image, dtype=np.uint8) if sel_mask is None else gr.update()
+
+    return ret_sam_image, ret_sel_mask
 
 def run_padding(input_image, pad_scale_width, pad_scale_height, pad_lr_barance, pad_tb_barance, padding_mode="edge"):
     clear_cache()
@@ -244,11 +249,13 @@ def run_sam(input_image, sam_model_id, sam_image):
     
     sam_checkpoint = os.path.join(os.path.dirname(__file__), "models", sam_model_id)
     if not os.path.isfile(sam_checkpoint):
-        return None, f"{sam_model_id} not found, please download"
+        ret_sam_image = None if sam_image is None else gr.update()
+        return ret_sam_image, f"{sam_model_id} not found, please download"
     
     if input_image is None:
-        return None, "Input image not found"
-    
+        ret_sam_image = None if sam_image is None else gr.update()
+        return ret_sam_image, "Input image not found"
+
     ia_logging.info(f"input_image: {input_image.shape} {input_image.dtype}")
     
     cm_pascal = create_pascal_label_colormap()
@@ -262,7 +269,8 @@ def run_sam(input_image, sam_model_id, sam_image):
     except Exception as e:
         ia_logging.error(str(e))
         del sam_mask_generator
-        return None, "SAM generate failed"
+        ret_sam_image = None if sam_image is None else gr.update()
+        return ret_sam_image, "SAM generate failed"
 
     ia_logging.info("sam_masks: {}".format(len(sam_masks)))
     sam_masks = sorted(sam_masks, key=lambda x: np.sum(x.get("segmentation").astype(np.uint32)))
@@ -323,12 +331,18 @@ def select_mask(input_image, sam_image, invert_chk, sel_mask):
     clear_cache()
     global sam_dict
     if sam_dict["sam_masks"] is None or sam_image is None:
-        return None
+        ret_sel_mask = None if sel_mask is None else gr.update()
+        return ret_sel_mask
     sam_masks = sam_dict["sam_masks"]
     
     image = sam_image["image"]
     mask = sam_image["mask"][:,:,0:1]
     
+    if len(sam_masks) > 0 and sam_masks[0]["segmentation"].shape[:2] != mask.shape[:2]:
+        ia_logging.error("sam_masks shape not match")
+        ret_sel_mask = None if sel_mask is None else gr.update()
+        return ret_sel_mask
+
     canvas_image = np.zeros((*image.shape[:2], 1), dtype=np.uint8)
     mask_region = np.zeros((*image.shape[:2], 1), dtype=np.uint8)
     for idx, seg_dict in enumerate(sam_masks):
@@ -806,7 +820,7 @@ def on_ui_tabs():
                         apply_mask_btn = gr.Button("Trim mask by sketch", elem_id="apply_mask_btn")
             
             load_model_btn.click(download_model, inputs=[sam_model_id], outputs=[status_text])
-            input_image.upload(input_image_upload, inputs=[input_image], outputs=None)
+            input_image.upload(input_image_upload, inputs=[input_image, sam_image, sel_mask], outputs=[sam_image, sel_mask])
             padding_btn.click(run_padding, inputs=[input_image, pad_scale_width, pad_scale_height, pad_lr_barance, pad_tb_barance, padding_mode], outputs=[input_image, status_text])
             sam_btn.click(run_sam, inputs=[input_image, sam_model_id, sam_image], outputs=[sam_image, status_text]).then(
                 fn=sleep_clear_cache, inputs=None, outputs=None)
