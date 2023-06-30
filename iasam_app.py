@@ -25,10 +25,10 @@ from segment_anything_hq import SamPredictor as SamPredictorHQ
 from ia_logging import ia_logging
 from ia_ui_items import (get_sampler_names, get_sam_model_ids, get_model_ids, get_cleaner_model_ids, get_padding_mode_names)
 from fast_sam import FastSamAutomaticMaskGenerator, fast_sam_model_registry
-import threading
 import math
 import copy
 from tqdm import tqdm
+from ia_threading import clear_cache, sleep_clear_cache
 print("platform:", platform.system())
 
 parser = argparse.ArgumentParser(description="Inpaint Anything")
@@ -181,19 +181,6 @@ def save_mask_image(mask_image, save_mask_chk=False):
         save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + "created_mask" + ".png"
         save_name = os.path.join(ia_outputs_dir, save_name)
         Image.fromarray(mask_image).save(save_name)
-
-def torch_gc():
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-        torch.cuda.ipc_collect()
-
-def clear_cache():
-    gc.collect()
-    torch_gc()
-
-def sleep_clear_cache():
-    time.sleep(0.1)
-    clear_cache()
 
 def input_image_upload(input_image, sam_image, sel_mask):
     clear_cache()
