@@ -198,7 +198,7 @@ def input_image_upload(input_image, sam_image, sel_mask):
     ret_sam_image = np.zeros_like(input_image, dtype=np.uint8) if sam_image is None else gr.update()
     ret_sel_mask = np.zeros_like(input_image, dtype=np.uint8) if sel_mask is None else gr.update()
 
-    return ret_sam_image, ret_sel_mask
+    return ret_sam_image, ret_sel_mask, gr.update(interactive=True)
 
 @clear_cache_decorator
 def run_padding(input_image, pad_scale_width, pad_scale_height, pad_lr_barance, pad_tb_barance, padding_mode="edge"):
@@ -237,10 +237,6 @@ def run_padding(input_image, pad_scale_width, pad_scale_height, pad_lr_barance, 
 @clear_cache_decorator
 def run_sam(input_image, sam_model_id, sam_image):
     global sam_dict
-    if sam_dict["sam_masks"] is not None:
-        sam_dict["sam_masks"] = None
-        gc.collect()
-    
     sam_checkpoint = os.path.join(os.path.dirname(__file__), "models", sam_model_id)
     if not os.path.isfile(sam_checkpoint):
         ret_sam_image = None if sam_image is None else gr.update()
@@ -250,11 +246,15 @@ def run_sam(input_image, sam_model_id, sam_image):
         ret_sam_image = None if sam_image is None else gr.update()
         return ret_sam_image, "Input image not found"
 
+    if sam_dict["sam_masks"] is not None:
+        sam_dict["sam_masks"] = None
+        gc.collect()
+
     ia_logging.info(f"input_image: {input_image.shape} {input_image.dtype}")
     
     cm_pascal = create_pascal_label_colormap()
     seg_colormap = cm_pascal
-    seg_colormap = [c for c in seg_colormap if max(c) >= 64]
+    seg_colormap = np.array([c for c in seg_colormap if max(c) >= 64], dtype=np.uint8)
     
     sam_mask_generator = get_sam_mask_generator(sam_checkpoint)
     ia_logging.info(f"{sam_mask_generator.__class__.__name__} {sam_model_id}")
@@ -729,7 +729,7 @@ def on_ui_tabs():
                                 padding_btn = gr.Button("Run Padding", elem_id="padding_btn")
                 
                 with gr.Row():
-                    sam_btn = gr.Button("Run Segment Anything", elem_id="sam_btn")
+                    sam_btn = gr.Button("Run Segment Anything", elem_id="sam_btn", interactive=False)
                 
                 with gr.Tab("Inpainting", elem_id="inpainting_tab"):
                     prompt = gr.Textbox(label="Inpainting Prompt", elem_id="sd_prompt")
@@ -814,7 +814,7 @@ def on_ui_tabs():
                         apply_mask_btn = gr.Button("Trim mask by sketch", elem_id="apply_mask_btn")
             
             load_model_btn.click(download_model, inputs=[sam_model_id], outputs=[status_text])
-            input_image.upload(input_image_upload, inputs=[input_image, sam_image, sel_mask], outputs=[sam_image, sel_mask])
+            input_image.upload(input_image_upload, inputs=[input_image, sam_image, sel_mask], outputs=[sam_image, sel_mask, sam_btn])
             padding_btn.click(run_padding, inputs=[input_image, pad_scale_width, pad_scale_height, pad_lr_barance, pad_tb_barance, padding_mode], outputs=[input_image, status_text])
             sam_btn.click(run_sam, inputs=[input_image, sam_model_id, sam_image], outputs=[sam_image, status_text])
             
