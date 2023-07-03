@@ -29,6 +29,7 @@ import math
 import copy
 from tqdm import tqdm
 from ia_threading import clear_cache_decorator
+from ia_config import IAConfig, setup_ia_config_ini, set_ia_config, get_ia_config_index
 print("platform:", platform.system())
 
 try:
@@ -246,6 +247,8 @@ def run_sam(input_image, sam_model_id, sam_image):
         ret_sam_image = None if sam_image is None else gr.update()
         return ret_sam_image, "Input image not found"
 
+    set_ia_config(IAConfig.KEY_SAM_MODEL_ID, sam_model_id, IAConfig.SECTION_USER)
+
     if sam_dict["sam_masks"] is not None:
         sam_dict["sam_masks"] = None
         gc.collect()
@@ -445,7 +448,7 @@ def auto_resize_to_pil(input_image, mask_image):
     return init_image, mask_image
 
 @clear_cache_decorator
-def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, model_id, save_mask_chk, composite_chk, sampler_name="DDIM"):
+def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, inp_model_id, save_mask_chk, composite_chk, sampler_name="DDIM"):
     global sam_dict
     if input_image is None or sam_dict["mask_image"] is None or sel_mask is None:
         return None
@@ -455,15 +458,17 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
         ia_logging.warning("The size of image and mask do not match")
         return None
 
+    set_ia_config(IAConfig.KEY_INP_MODEL_ID, inp_model_id, IAConfig.SECTION_USER)
+
     global ia_outputs_dir
     save_mask_image(mask_image, save_mask_chk)
 
-    ia_logging.info(f"Loading model {model_id}")
+    ia_logging.info(f"Loading model {inp_model_id}")
     config_offline_inpainting = args.offline
     if config_offline_inpainting:
         ia_logging.info("Enable offline network Inpainting: {}".format(str(config_offline_inpainting)))
     local_files_only = False
-    local_file_status = download_model_from_hf(model_id, local_files_only=True)
+    local_file_status = download_model_from_hf(inp_model_id, local_files_only=True)
     if local_file_status != _DOWNLOAD_COMPLETE:
         if config_offline_inpainting:
             ia_logging.warning(local_file_status)
@@ -478,16 +483,16 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
         torch_dtype = torch.float16
     
     try:
-        pipe = StableDiffusionInpaintPipeline.from_pretrained(model_id, torch_dtype=torch_dtype, local_files_only=local_files_only)
+        pipe = StableDiffusionInpaintPipeline.from_pretrained(inp_model_id, torch_dtype=torch_dtype, local_files_only=local_files_only)
     except Exception as e:
         ia_logging.error(str(e))
         if not config_offline_inpainting:
             try:
-                pipe = StableDiffusionInpaintPipeline.from_pretrained(model_id, torch_dtype=torch_dtype, resume_download=True)
+                pipe = StableDiffusionInpaintPipeline.from_pretrained(inp_model_id, torch_dtype=torch_dtype, resume_download=True)
             except Exception as e:
                 ia_logging.error(str(e))
                 try:
-                    pipe = StableDiffusionInpaintPipeline.from_pretrained(model_id, torch_dtype=torch_dtype, force_download=True)
+                    pipe = StableDiffusionInpaintPipeline.from_pretrained(inp_model_id, torch_dtype=torch_dtype, force_download=True)
                 except Exception as e:
                     ia_logging.error(str(e))
                     return None
@@ -554,7 +559,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
         "CFG scale": cfg_scale,
         "Seed": seed,
         "Size": f"{width}x{height}",
-        "Model": model_id,
+        "Model": inp_model_id,
         }
 
     generation_params_text = ", ".join([k if k == v else f'{k}: {v}' for k, v in generation_params.items() if v is not None])
@@ -567,7 +572,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
     
     if not os.path.isdir(ia_outputs_dir):
         os.makedirs(ia_outputs_dir, exist_ok=True)
-    save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + os.path.basename(model_id) + "_" + str(seed) + ".png"
+    save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + os.path.basename(inp_model_id) + "_" + str(seed) + ".png"
     save_name = os.path.join(ia_outputs_dir, save_name)
     output_image.save(save_name, pnginfo=metadata)
     
@@ -684,10 +689,14 @@ def run_get_mask(sel_mask):
     return mask_image
 
 def on_ui_tabs():
+    setup_ia_config_ini()
     sampler_names = get_sampler_names()
     sam_model_ids = get_sam_model_ids()
-    sam_model_index =  sam_model_ids.index("sam_vit_l_0b3195.pth") if "sam_vit_l_0b3195.pth" in sam_model_ids else 1
-    model_ids = get_model_ids()
+    sam_model_index = get_ia_config_index(IAConfig.KEY_SAM_MODEL_ID, IAConfig.SECTION_USER)
+    sam_model_index = sam_model_index if sam_model_index is not None else 1
+    inp_model_ids = get_model_ids()
+    inp_model_index = get_ia_config_index(IAConfig.KEY_INP_MODEL_ID, IAConfig.SECTION_USER)
+    inp_model_index = inp_model_index if inp_model_index is not None else 0
     cleaner_model_ids = get_cleaner_model_ids()
     padding_mode_names = get_padding_mode_names()
 
@@ -752,7 +761,7 @@ def on_ui_tabs():
                         )
                     with gr.Row():
                         with gr.Column():
-                            model_id = gr.Dropdown(label="Inpainting Model ID", elem_id="model_id", choices=model_ids, value=model_ids[0], show_label=True)
+                            inp_model_id = gr.Dropdown(label="Inpainting Model ID", elem_id="inp_model_id", choices=inp_model_ids, value=inp_model_ids[inp_model_index], show_label=True)
                         with gr.Column():
                             with gr.Row():
                                 inpaint_btn = gr.Button("Run Inpainting", elem_id="inpaint_btn")
@@ -796,16 +805,18 @@ def on_ui_tabs():
                             gr.Markdown("")
             
             with gr.Column():
-                sam_image = gr.Image(label="Segment Anything image", elem_id="sam_image", type="numpy", tool="sketch", brush_radius=8,
-                                     interactive=True).style(height=480)
+                with gr.Row():
+                    sam_image = gr.Image(label="Segment Anything image", elem_id="sam_image", type="numpy", tool="sketch", brush_radius=8,
+                                        interactive=True).style(height=480)
                 with gr.Row():
                     with gr.Column():
                         select_btn = gr.Button("Create mask", elem_id="select_btn")
                     with gr.Column():
                         invert_chk = gr.Checkbox(label="Invert mask", elem_id="invert_chk", show_label=True, interactive=True)
 
-                sel_mask = gr.Image(label="Selected mask image", elem_id="sel_mask", type="numpy", tool="sketch", brush_radius=12,
-                                    interactive=True).style(height=480)
+                with gr.Row():
+                    sel_mask = gr.Image(label="Selected mask image", elem_id="sel_mask", type="numpy", tool="sketch", brush_radius=12,
+                                        interactive=True).style(height=480)
 
                 with gr.Row():
                     with gr.Column():
@@ -826,7 +837,7 @@ def on_ui_tabs():
             
             inpaint_btn.click(
                 run_inpaint,
-                inputs=[input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, model_id, save_mask_chk, composite_chk, sampler_name],
+                inputs=[input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, inp_model_id, save_mask_chk, composite_chk, sampler_name],
                 outputs=[out_image])
             
             cleaner_btn.click(

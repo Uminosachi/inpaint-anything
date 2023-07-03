@@ -4,6 +4,7 @@ src/
 outputs/
 models/
 .DS_Store
+ia_config.ini
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
