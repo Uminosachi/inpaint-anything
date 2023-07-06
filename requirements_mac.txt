@@ -11,8 +11,9 @@ numpy
 opencv-python
 Pillow
 segment-anything
-transformers
+transformers<5.0.0
 xformers==0.0.20
 lama-cleaner
 ultralytics
 tqdm
+packaging
