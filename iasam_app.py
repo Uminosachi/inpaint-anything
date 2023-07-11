@@ -16,7 +16,6 @@ from PIL.PngImagePlugin import PngInfo
 import time
 import random
 import cv2
-from huggingface_hub import snapshot_download
 from lama_cleaner.model_manager import ModelManager
 from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
 from segment_anything_hq import sam_model_registry as sam_model_registry_hq
@@ -31,6 +30,7 @@ from tqdm import tqdm
 from ia_threading import clear_cache_decorator
 from ia_config import IAConfig, setup_ia_config_ini, set_ia_config, get_ia_config_index
 from ia_check_versions import ia_check_versions
+from ia_file_manager import IAFileManager, ia_file_manager, download_model_from_hf
 print("platform:", platform.system())
 
 try:
@@ -45,8 +45,6 @@ parser.add_argument("--offline", action="store_true", help="Enable offline netwo
 args = parser.parse_args()
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-
-_DOWNLOAD_COMPLETE = "Download complete"
 
 @clear_cache_decorator
 def download_model(sam_model_id):
@@ -65,38 +63,18 @@ def download_model(sam_model_id):
     else:
         # url_sam_vit_h_4b8939 = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth"
         url_sam = "https://dl.fbaipublicfiles.com/segment_anything/" + sam_model_id
-    models_dir = os.path.join(os.path.dirname(__file__), "models")
+    models_dir = ia_file_manager.models_dir
     sam_checkpoint = os.path.join(models_dir, sam_model_id)
     if not os.path.isfile(sam_checkpoint):
-        if not os.path.isdir(models_dir):
-            os.makedirs(models_dir, exist_ok=True)
+        try:        
+            download_url_to_file(url_sam, sam_checkpoint)
+        except Exception as e:
+            ia_logging.error(str(e))
+            return str(e)
         
-        download_url_to_file(url_sam, sam_checkpoint)
-        
-        return _DOWNLOAD_COMPLETE
+        return IAFileManager.DOWNLOAD_COMPLETE
     else:
         return "Model already exists"
-
-def download_model_from_hf(hf_model_id, local_files_only=False):
-    """Download model from HuggingFace Hub.
-
-    Args:
-        sam_model_id (str): HuggingFace model id
-        local_files_only (bool, optional): If True, use only local files. Defaults to False.
-
-    Returns:
-        str: download status
-    """
-    if not local_files_only:
-        ia_logging.info(f"Downloading {hf_model_id}")
-    try:
-        snapshot_download(repo_id=hf_model_id, local_files_only=local_files_only)
-    except FileNotFoundError:
-        return f"{hf_model_id} not found, please download"
-    except Exception as e:
-        return str(e)
-
-    return _DOWNLOAD_COMPLETE
 
 def get_sam_mask_generator(sam_checkpoint):
     """Get SAM mask generator.
@@ -167,11 +145,7 @@ def get_sam_predictor(sam_checkpoint):
     
     return sam_predictor
 
-ia_outputs_dir = os.path.join(os.path.dirname(__file__),
-                          "outputs",
-                          datetime.now().strftime("%Y-%m-%d"))
-
-sam_dict = dict(sam_masks=None, mask_image=None, cnet=None)
+sam_dict = dict(sam_masks=None, mask_image=None, cnet=None, orig_image=None, pad_mask=None)
 
 def save_mask_image(mask_image, save_mask_chk=False):
     """Save mask image.
@@ -183,12 +157,9 @@ def save_mask_image(mask_image, save_mask_chk=False):
     Returns:
         None
     """
-    global ia_outputs_dir
     if save_mask_chk:
-        if not os.path.isdir(ia_outputs_dir):
-            os.makedirs(ia_outputs_dir, exist_ok=True)
         save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + "created_mask" + ".png"
-        save_name = os.path.join(ia_outputs_dir, save_name)
+        save_name = os.path.join(ia_file_manager.outputs_dir, save_name)
         Image.fromarray(mask_image).save(save_name)
 
 @clear_cache_decorator
@@ -239,7 +210,7 @@ def run_padding(input_image, pad_scale_width, pad_scale_height, pad_lr_barance, 
 @clear_cache_decorator
 def run_sam(input_image, sam_model_id, sam_image):
     global sam_dict
-    sam_checkpoint = os.path.join(os.path.dirname(__file__), "models", sam_model_id)
+    sam_checkpoint = os.path.join(ia_file_manager.models_dir, sam_model_id)
     if not os.path.isfile(sam_checkpoint):
         ret_sam_image = None if sam_image is None else gr.update()
         return ret_sam_image, f"{sam_model_id} not found, please download"
@@ -273,7 +244,9 @@ def run_sam(input_image, sam_model_id, sam_image):
     ia_logging.info("sam_masks: {}".format(len(sam_masks)))
     sam_masks = sorted(sam_masks, key=lambda x: np.sum(x.get("segmentation").astype(np.uint32)))
     if sam_dict["pad_mask"] is not None:
-        if len(sam_masks) > 0 and sam_masks[0]["segmentation"].shape == sam_dict["pad_mask"]["segmentation"].shape:
+        if (len(sam_masks) > 0 and
+            sam_masks[0]["segmentation"].shape == sam_dict["pad_mask"]["segmentation"].shape and
+            np.any(sam_dict["pad_mask"]["segmentation"])):
             sam_masks.insert(0, sam_dict["pad_mask"])
             ia_logging.info("insert pad_mask to sam_masks")
     sam_masks = sam_masks[:len(seg_colormap)]
@@ -305,12 +278,9 @@ def run_sam(input_image, sam_model_id, sam_image):
             canvas_image = temp_canvas_image
     seg_image = canvas_image.astype(np.uint8)
     
-    global ia_outputs_dir
     if args.save_segment:
-        if not os.path.isdir(ia_outputs_dir):
-            os.makedirs(ia_outputs_dir, exist_ok=True)
         save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + os.path.splitext(os.path.basename(sam_checkpoint))[0] + ".png"
-        save_name = os.path.join(ia_outputs_dir, save_name)
+        save_name = os.path.join(ia_file_manager.outputs_dir, save_name)
         Image.fromarray(seg_image).save(save_name)
 
     sam_dict["sam_masks"] = copy.deepcopy(sam_masks)
@@ -461,7 +431,6 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
 
     set_ia_config(IAConfig.KEY_INP_MODEL_ID, inp_model_id, IAConfig.SECTION_USER)
 
-    global ia_outputs_dir
     save_mask_image(mask_image, save_mask_chk)
 
     ia_logging.info(f"Loading model {inp_model_id}")
@@ -470,7 +439,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
         ia_logging.info("Enable offline network Inpainting: {}".format(str(config_offline_inpainting)))
     local_files_only = False
     local_file_status = download_model_from_hf(inp_model_id, local_files_only=True)
-    if local_file_status != _DOWNLOAD_COMPLETE:
+    if local_file_status != IAFileManager.DOWNLOAD_COMPLETE:
         if config_offline_inpainting:
             ia_logging.warning(local_file_status)
             return None
@@ -478,7 +447,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
         local_files_only = True
         ia_logging.info("local_files_only: {}".format(str(local_files_only)))
     
-    if platform.system() == "Darwin":
+    if platform.system() == "Darwin" or device == "cpu":
         torch_dtype = torch.float32
     else:
         torch_dtype = torch.float16
@@ -524,7 +493,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
         pipe.enable_attention_slicing()
         generator = torch.Generator("cpu").manual_seed(seed)
     else:
-        if ia_check_versions.diffusers_enable_cpu_offload:
+        if ia_check_versions.diffusers_enable_cpu_offload and device != "cpu":
             ia_logging.info("Enable model cpu offload")
             pipe.enable_model_cpu_offload()
         else:
@@ -575,10 +544,8 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
     metadata = PngInfo()
     metadata.add_text("parameters", infotext)
     
-    if not os.path.isdir(ia_outputs_dir):
-        os.makedirs(ia_outputs_dir, exist_ok=True)
     save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + os.path.basename(inp_model_id) + "_" + str(seed) + ".png"
-    save_name = os.path.join(ia_outputs_dir, save_name)
+    save_name = os.path.join(ia_file_manager.outputs_dir, save_name)
     output_image.save(save_name, pnginfo=metadata)
     
     del pipe
@@ -595,7 +562,6 @@ def run_cleaner(input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk):
         ia_logging.error("The size of image and mask do not match")
         return None
 
-    global ia_outputs_dir
     save_mask_image(mask_image, cleaner_save_mask_chk)
 
     ia_logging.info(f"Loading model {cleaner_model_id}")
@@ -626,10 +592,8 @@ def run_cleaner(input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk):
     output_image = cv2.cvtColor(output_image.astype(np.uint8), cv2.COLOR_BGR2RGB)
     output_image = Image.fromarray(output_image)
 
-    if not os.path.isdir(ia_outputs_dir):
-        os.makedirs(ia_outputs_dir, exist_ok=True)
     save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + os.path.basename(cleaner_model_id) + ".png"
-    save_name = os.path.join(ia_outputs_dir, save_name)
+    save_name = os.path.join(ia_file_manager.outputs_dir, save_name)
     output_image.save(save_name)
     
     del model
@@ -651,11 +615,8 @@ def run_get_alpha_image(input_image, sel_mask):
     
     alpha_image.putalpha(mask_image)
     
-    global ia_outputs_dir
-    if not os.path.isdir(ia_outputs_dir):
-        os.makedirs(ia_outputs_dir, exist_ok=True)
     save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + "rgba_image" + ".png"
-    save_name = os.path.join(ia_outputs_dir, save_name)
+    save_name = os.path.join(ia_file_manager.outputs_dir, save_name)
     alpha_image.save(save_name)
     
     def make_checkerboard(n_rows, n_columns, square_size):
@@ -684,11 +645,8 @@ def run_get_mask(sel_mask):
     
     mask_image = sam_dict["mask_image"]
 
-    global ia_outputs_dir
-    if not os.path.isdir(ia_outputs_dir):
-        os.makedirs(ia_outputs_dir, exist_ok=True)
     save_name = datetime.now().strftime("%Y%m%d-%H%M%S") + "_" + "created_mask" + ".png"
-    save_name = os.path.join(ia_outputs_dir, save_name)
+    save_name = os.path.join(ia_file_manager.outputs_dir, save_name)
     Image.fromarray(mask_image).save(save_name)
     
     return mask_image
