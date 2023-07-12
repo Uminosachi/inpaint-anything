@@ -5,7 +5,7 @@ from PIL import Image, ImageFilter, ImageOps
 import gradio as gr
 from diffusers import StableDiffusionInpaintPipeline, DDIMScheduler, EulerDiscreteScheduler, EulerAncestralDiscreteScheduler, KDPM2DiscreteScheduler, KDPM2AncestralDiscreteScheduler
 from segment_anything import SamAutomaticMaskGenerator, SamPredictor, sam_model_registry
-from get_dataset_colormap import create_pascal_label_colormap
+from ia_get_dataset_colormap import create_pascal_label_colormap
 from torch.hub import download_url_to_file
 from torchvision import transforms
 from datetime import datetime
