@@ -7,11 +7,11 @@ class IAFileManager:
     DOWNLOAD_COMPLETE = "Download complete"
 
     def __init__(self) -> None:
-        self._ia_outputs_dir = os.path.join(os.path.dirname(__file__),
+        self._ia_outputs_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                             "outputs",
                                             datetime.now().strftime("%Y-%m-%d"))
 
-        self._ia_models_dir = os.path.join(os.path.dirname(__file__), "models")
+        self._ia_models_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "models")
 
     @property
     def outputs_dir(self) -> str:

@@ -3,7 +3,7 @@ import os
 from ia_ui_items import get_sam_model_ids, get_inp_model_ids
 import json
 
-ia_config_ini_path = os.path.join(os.path.dirname(__file__), "ia_config.ini")
+ia_config_ini_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "ia_config.ini")
 
 class IAConfig:
     SECTION_DEFAULT = "DEFAULT"
