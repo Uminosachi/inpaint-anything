@@ -62,6 +62,7 @@ To download the model:
 
 * Drag and drop your image onto the input image area.
   * Outpainting can be achieved by the `Padding options`, configuring the scale and balance, and then clicking on the `Run Padding` button.
+  * The `Anime Style` checkbox enhances segmentation mask detection, particularly in anime style images, at the expense of a slight reduction in mask quality.
 * Click on the `Run Segment Anything` button.
 * Use sketching to point the area you want to inpaint. You can undo and adjust the pen size.
 * Click on the `Create mask` button. The mask will appear in the selected mask image area.
@@ -89,6 +90,7 @@ python
 ```python
 from diffusers import StableDiffusionInpaintPipeline
 pipe = StableDiffusionInpaintPipeline.from_pretrained("Uminosachi/dreamshaper_5-inpainting")
+exit()
 ```
 * The model diffusers downloaded is typically stored in your home directory. You can find it at `/home/username/.cache/huggingface/hub` for Linux and MacOS users, or at `C:\Users\username\.cache\huggingface\hub` for Windows users.
 
