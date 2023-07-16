@@ -630,23 +630,7 @@ def run_get_alpha_image(input_image, sel_mask):
     save_name = os.path.join(ia_file_manager.outputs_dir, save_name)
     alpha_image.save(save_name)
     
-    def make_checkerboard(n_rows, n_columns, square_size):
-        n_rows_, n_columns_ = int(n_rows/square_size + 1), int(n_columns/square_size + 1)
-        rows_grid, columns_grid = np.meshgrid(range(n_rows_), range(n_columns_), indexing='ij')
-        high_res_checkerboard = (np.mod(rows_grid, 2) + np.mod(columns_grid, 2)) == 1
-        square = np.ones((square_size,square_size))
-        checkerboard = np.kron(high_res_checkerboard, square)[:n_rows,:n_columns]
-
-        return checkerboard
-    
-    checkerboard = make_checkerboard(alpha_image.size[1], alpha_image.size[0], 16)
-    checkerboard = np.clip((checkerboard * 255), 128, 192).astype(np.uint8)
-    checkerboard = Image.fromarray(checkerboard).convert("RGBA")
-    checkerboard.putalpha(ImageOps.invert(mask_image))
-    
-    output_image = Image.alpha_composite(alpha_image, checkerboard)
-    
-    return output_image, f"saved: {save_name}"
+    return alpha_image, f"saved: {save_name}"
 
 @clear_cache_decorator
 def run_get_mask(sel_mask):
@@ -713,7 +697,7 @@ def on_ui_tabs():
                 
                 with gr.Row():
                     with gr.Column():
-                        anime_style_chk = gr.Checkbox(label="Anime Style (Up Detection, Down Mask Quality)", elem_id="anime_style_chk", show_label=True, interactive=True)
+                        anime_style_chk = gr.Checkbox(label="Anime Style (Up Detection, Down mask Quality)", elem_id="anime_style_chk", show_label=True, interactive=True)
                     with gr.Column():
                         sam_btn = gr.Button("Run Segment Anything", elem_id="sam_btn", interactive=False)
                 
@@ -771,7 +755,7 @@ def on_ui_tabs():
                     
                     with gr.Row():
                         with gr.Column():
-                            alpha_out_image = gr.Image(label="Alpha channel image", elem_id="alpha_out_image", type="pil", interactive=False)
+                            alpha_out_image = gr.Image(label="Alpha channel image", elem_id="alpha_out_image", type="pil", image_mode="RGBA", interactive=False)
                         with gr.Column():
                             mask_out_image = gr.Image(label="Mask image", elem_id="mask_out_image", type="numpy", interactive=False)
 
@@ -783,8 +767,8 @@ def on_ui_tabs():
             
             with gr.Column():
                 with gr.Row():
-                    sam_image = gr.Image(label="Segment Anything image", elem_id="sam_image", type="numpy", tool="sketch", brush_radius=8,
-                                        interactive=True).style(height=480)
+                    sam_image = gr.Image(label="Segment Anything image", elem_id="ia_sam_image", type="numpy", tool="sketch", brush_radius=8,
+                                         show_label=False, interactive=True).style(height=480)
                 with gr.Row():
                     with gr.Column():
                         select_btn = gr.Button("Create mask", elem_id="select_btn")
@@ -792,8 +776,8 @@ def on_ui_tabs():
                         invert_chk = gr.Checkbox(label="Invert mask", elem_id="invert_chk", show_label=True, interactive=True)
 
                 with gr.Row():
-                    sel_mask = gr.Image(label="Selected mask image", elem_id="sel_mask", type="numpy", tool="sketch", brush_radius=12,
-                                        interactive=True).style(height=480)
+                    sel_mask = gr.Image(label="Selected mask image", elem_id="ia_sel_mask", type="numpy", tool="sketch", brush_radius=12,
+                                        show_label=False, interactive=True).style(height=480)
 
                 with gr.Row():
                     with gr.Column():
