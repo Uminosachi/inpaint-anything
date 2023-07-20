@@ -1,41 +1,51 @@
-import os
-import torch
-import numpy as np
-from PIL import Image, ImageFilter
-import gradio as gr
-from diffusers import (StableDiffusionInpaintPipeline, DDIMScheduler, EulerDiscreteScheduler,
-                       EulerAncestralDiscreteScheduler, KDPM2DiscreteScheduler, KDPM2AncestralDiscreteScheduler)
-from segment_anything import SamAutomaticMaskGenerator, SamPredictor, sam_model_registry
-from ia_get_dataset_colormap import create_pascal_label_colormap
-from torch.hub import download_url_to_file
-from torchvision import transforms
-from datetime import datetime
-import gc
 import argparse
-import platform
-from PIL.PngImagePlugin import PngInfo
-import random
-import cv2
-from lama_cleaner.model_manager import ModelManager
-from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
-from segment_anything_hq import sam_model_registry as sam_model_registry_hq
-from segment_anything_hq import SamAutomaticMaskGenerator as SamAutomaticMaskGeneratorHQ
-from segment_anything_hq import SamPredictor as SamPredictorHQ
-from mobile_sam import sam_model_registry as sam_model_registry_mobile
-from mobile_sam import SamAutomaticMaskGenerator as SamAutomaticMaskGeneratorMobile
-from mobile_sam import SamPredictor as SamPredictorMobile
-
-from ia_logging import ia_logging
-from ia_ui_items import (get_sampler_names, get_sam_model_ids, get_inp_model_ids, get_cleaner_model_ids, get_padding_mode_names)
-from fast_sam import FastSamAutomaticMaskGenerator, fast_sam_model_registry
 # import math
 import copy
-from tqdm import tqdm
-from ia_threading import clear_cache_decorator
-from ia_config import IAConfig, setup_ia_config_ini, set_ia_config, get_ia_config_index
-from ia_check_versions import ia_check_versions
-from ia_file_manager import IAFileManager, ia_file_manager, download_model_from_hf
+import gc
+import os
+import platform
+import random
+from datetime import datetime
 from importlib.util import find_spec
+
+import cv2
+import gradio as gr
+import numpy as np
+import torch
+from diffusers import (DDIMScheduler, EulerAncestralDiscreteScheduler,
+                       EulerDiscreteScheduler, KDPM2AncestralDiscreteScheduler,
+                       KDPM2DiscreteScheduler, StableDiffusionInpaintPipeline)
+from lama_cleaner.model_manager import ModelManager
+from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
+from PIL import Image, ImageFilter
+from PIL.PngImagePlugin import PngInfo
+from segment_anything import (SamAutomaticMaskGenerator, SamPredictor,
+                              sam_model_registry)
+from torch.hub import download_url_to_file
+from torchvision import transforms
+from tqdm import tqdm
+
+from fast_sam import FastSamAutomaticMaskGenerator, fast_sam_model_registry
+from ia_check_versions import ia_check_versions
+from ia_config import (IAConfig, get_ia_config_index, set_ia_config,
+                       setup_ia_config_ini)
+from ia_file_manager import (IAFileManager, download_model_from_hf,
+                             ia_file_manager)
+from ia_get_dataset_colormap import create_pascal_label_colormap
+from ia_logging import ia_logging
+from ia_threading import clear_cache_decorator
+from ia_ui_items import (get_cleaner_model_ids, get_inp_model_ids,
+                         get_padding_mode_names, get_sam_model_ids,
+                         get_sampler_names)
+from mobile_sam import \
+    SamAutomaticMaskGenerator as SamAutomaticMaskGeneratorMobile
+from mobile_sam import SamPredictor as SamPredictorMobile
+from mobile_sam import sam_model_registry as sam_model_registry_mobile
+from segment_anything_hq import \
+    SamAutomaticMaskGenerator as SamAutomaticMaskGeneratorHQ
+from segment_anything_hq import SamPredictor as SamPredictorHQ
+from segment_anything_hq import sam_model_registry as sam_model_registry_hq
+
 print("platform:", platform.system())
 
 if find_spec("xformers") is not None:
@@ -728,7 +738,8 @@ def on_ui_tabs():
 
                 with gr.Row():
                     with gr.Column():
-                        anime_style_chk = gr.Checkbox(label="Anime Style (Up Detection, Down mask Quality)", elem_id="anime_style_chk", show_label=True, interactive=True)
+                        anime_style_chk = gr.Checkbox(label="Anime Style (Up Detection, Down mask Quality)", elem_id="anime_style_chk",
+                                                      show_label=True, interactive=True)
                     with gr.Column():
                         sam_btn = gr.Button("Run Segment Anything", elem_id="sam_btn", interactive=False)
 
@@ -753,7 +764,8 @@ def on_ui_tabs():
                         )
                     with gr.Row():
                         with gr.Column():
-                            inp_model_id = gr.Dropdown(label="Inpainting Model ID", elem_id="inp_model_id", choices=inp_model_ids, value=inp_model_ids[inp_model_index], show_label=True)
+                            inp_model_id = gr.Dropdown(label="Inpainting Model ID", elem_id="inp_model_id",
+                                                       choices=inp_model_ids, value=inp_model_ids[inp_model_index], show_label=True)
                         with gr.Column():
                             with gr.Row():
                                 inpaint_btn = gr.Button("Run Inpainting", elem_id="inpaint_btn")
@@ -762,12 +774,14 @@ def on_ui_tabs():
                                 save_mask_chk = gr.Checkbox(label="Save mask", elem_id="save_mask_chk", show_label=True, interactive=True)
 
                     with gr.Row():
-                        out_image = gr.Image(label="Inpainted image", elem_id="out_image", type="pil", interactive=False).style(height=480)
+                        out_image = gr.Image(label="Inpainted image", elem_id="out_image", type="pil",
+                                             interactive=False, show_label=False).style(height=480)
 
                 with gr.Tab("Cleaner", elem_id="cleaner_tab"):
                     with gr.Row():
                         with gr.Column():
-                            cleaner_model_id = gr.Dropdown(label="Cleaner Model ID", elem_id="cleaner_model_id", choices=cleaner_model_ids, value=cleaner_model_ids[0], show_label=True)
+                            cleaner_model_id = gr.Dropdown(label="Cleaner Model ID", elem_id="cleaner_model_id",
+                                                           choices=cleaner_model_ids, value=cleaner_model_ids[0], show_label=True)
                         with gr.Column():
                             with gr.Row():
                                 cleaner_btn = gr.Button("Run Cleaner", elem_id="cleaner_btn")
@@ -775,7 +789,8 @@ def on_ui_tabs():
                                 cleaner_save_mask_chk = gr.Checkbox(label="Save mask", elem_id="cleaner_save_mask_chk", show_label=True, interactive=True)
 
                     with gr.Row():
-                        cleaner_out_image = gr.Image(label="Cleaned image", elem_id="cleaner_out_image", type="pil", interactive=False).style(height=480)
+                        cleaner_out_image = gr.Image(label="Cleaned image", elem_id="cleaner_out_image", type="pil",
+                                                     interactive=False, show_label=False).style(height=480)
 
                 with gr.Tab("Mask only", elem_id="mask_only_tab"):
                     with gr.Row():
@@ -818,7 +833,8 @@ def on_ui_tabs():
 
             load_model_btn.click(download_model, inputs=[sam_model_id], outputs=[status_text])
             input_image.upload(input_image_upload, inputs=[input_image, sam_image, sel_mask], outputs=[sam_image, sel_mask, sam_btn])
-            padding_btn.click(run_padding, inputs=[input_image, pad_scale_width, pad_scale_height, pad_lr_barance, pad_tb_barance, padding_mode], outputs=[input_image, status_text])
+            padding_btn.click(run_padding, inputs=[input_image, pad_scale_width, pad_scale_height, pad_lr_barance, pad_tb_barance, padding_mode],
+                              outputs=[input_image, status_text])
             sam_btn.click(run_sam, inputs=[input_image, sam_model_id, sam_image, anime_style_chk], outputs=[sam_image, status_text])
 
             select_btn.click(select_mask, inputs=[input_image, sam_image, invert_chk, sel_mask], outputs=[sel_mask])
