@@ -840,6 +840,8 @@ def on_ui_tabs():
 
             with gr.Column():
                 with gr.Row():
+                    gr.Markdown("Mouse over image: Press `S` key for Fullscreen mode, `R` key to Reset zoom")
+                with gr.Row():
                     sam_image = gr.Image(label="Segment Anything image", elem_id="ia_sam_image", type="numpy", tool="sketch", brush_radius=8,
                                          show_label=False, interactive=True).style(height=480)
                 with gr.Row():
