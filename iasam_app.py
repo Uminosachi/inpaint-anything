@@ -19,8 +19,6 @@ from lama_cleaner.model_manager import ModelManager
 from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
 from PIL import Image, ImageFilter
 from PIL.PngImagePlugin import PngInfo
-from segment_anything import (SamAutomaticMaskGenerator, SamPredictor,
-                              sam_model_registry)
 from torch.hub import download_url_to_file
 from torchvision import transforms
 from tqdm import tqdm
@@ -42,6 +40,8 @@ from mobile_sam import \
     SamAutomaticMaskGenerator as SamAutomaticMaskGeneratorMobile
 from mobile_sam import SamPredictor as SamPredictorMobile
 from mobile_sam import sam_model_registry as sam_model_registry_mobile
+from segment_anything_fb import (SamAutomaticMaskGenerator, SamPredictor,
+                                 sam_model_registry)
 from segment_anything_hq import \
     SamAutomaticMaskGenerator as SamAutomaticMaskGeneratorHQ
 from segment_anything_hq import SamPredictor as SamPredictorHQ
@@ -134,7 +134,7 @@ def get_sam_mask_generator(sam_checkpoint, anime_style_chk=False):
     if os.path.isfile(sam_checkpoint):
         sam = sam_model_registry_local[model_type](checkpoint=sam_checkpoint)
         if platform.system() == "Darwin":
-            sam.to(device="cpu")
+            sam.to(device="mps")
         else:
             sam.to(device=device)
         sam_mask_generator = SamAutomaticMaskGeneratorLocal(
@@ -171,7 +171,7 @@ def get_sam_predictor(sam_checkpoint):
     if os.path.isfile(sam_checkpoint):
         sam = sam_model_registry_local[model_type](checkpoint=sam_checkpoint)
         if platform.system() == "Darwin":
-            sam.to(device="cpu")
+            sam.to(device="mps")
         else:
             sam.to(device=device)
         sam_predictor = SamPredictorLocal(sam)

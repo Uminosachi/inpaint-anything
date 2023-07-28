@@ -84,7 +84,7 @@ function executeCallbacks(queue) {
     }
 }
 
-onUiLoaded(async() => {
+onUiLoaded(async () => {
     const elementIDs = {
         ia_sam_image: "#ia_sam_image",
         ia_sel_mask: "#ia_sel_mask",
