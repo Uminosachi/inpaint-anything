@@ -10,21 +10,21 @@ async function inpaintAnything_clearSamMask() {
     targetElement.style.transform = null;
     targetElement.style.zIndex = null;
 
-    const sam_mask_clear = targetElement.querySelector("button[aria-label='Clear']");
-    if (!sam_mask_clear) {
+    const samMaskClear = targetElement.querySelector("button[aria-label='Clear']");
+    if (!samMaskClear) {
         return;
     }
-    const remove_image_button = targetElement.querySelector("button[aria-label='Remove Image']");
-    if (!remove_image_button) {
+    const removeImageButton = targetElement.querySelector("button[aria-label='Remove Image']");
+    if (!removeImageButton) {
         return;
     }
-    sam_mask_clear?.click();
+    samMaskClear?.click();
 
     function clickRemoveImage() {
         targetElement.style.transform = null;
         targetElement.style.zIndex = null;
     }
-    remove_image_button.addEventListener("click", clickRemoveImage);
+    removeImageButton.addEventListener("click", clickRemoveImage);
 }
 
 async function inpaintAnything_clearSelMask() {
@@ -39,21 +39,21 @@ async function inpaintAnything_clearSelMask() {
     targetElement.style.transform = null;
     targetElement.style.zIndex = null;
 
-    const sel_mask_clear = targetElement.querySelector("button[aria-label='Clear']");
-    if (!sel_mask_clear) {
+    const selMaskClear = targetElement.querySelector("button[aria-label='Clear']");
+    if (!selMaskClear) {
         return;
     }
-    const remove_image_button = targetElement.querySelector("button[aria-label='Remove Image']");
-    if (!remove_image_button) {
+    const removeImageButton = targetElement.querySelector("button[aria-label='Remove Image']");
+    if (!removeImageButton) {
         return;
     }
-    sel_mask_clear?.click();
+    selMaskClear?.click();
 
     function clickRemoveImage() {
         targetElement.style.transform = null;
         targetElement.style.zIndex = null;
     }
-    remove_image_button.addEventListener("click", clickRemoveImage);
+    removeImageButton.addEventListener("click", clickRemoveImage);
 }
 
 var uiLoadedCallbacks = [];
@@ -84,7 +84,7 @@ function executeCallbacks(queue) {
     }
 }
 
-onUiLoaded(async () => {
+onUiLoaded(async() => {
     const elementIDs = {
         ia_sam_image: "#ia_sam_image",
         ia_sel_mask: "#ia_sel_mask",
@@ -97,6 +97,7 @@ onUiLoaded(async () => {
     };
 
     const elemData = {};
+    let activeElement;
 
     function applyZoomAndPan(elemId) {
         const targetElement = gradioApp().querySelector(elemId);
