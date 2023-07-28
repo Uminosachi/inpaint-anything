@@ -1,5 +1,5 @@
 async function inpaintAnything_clearSamMask() {
-    await new Promise((s) => setTimeout(s, 300));
+    await new Promise((s) => setTimeout(s, 200));
 
     const elemId = "#ia_sam_image";
 
@@ -10,19 +10,25 @@ async function inpaintAnything_clearSamMask() {
     targetElement.style.transform = null;
     targetElement.style.zIndex = null;
 
-    const sam_mask_clear = document.querySelector(elemId).querySelector("button[aria-label='Clear']");
+    const sam_mask_clear = targetElement.querySelector("button[aria-label='Clear']");
     if (!sam_mask_clear) {
         return;
     }
-    const remove_image_button = document.querySelector(elemId).querySelector("button[aria-label='Remove Image']");
+    const remove_image_button = targetElement.querySelector("button[aria-label='Remove Image']");
     if (!remove_image_button) {
         return;
     }
     sam_mask_clear?.click();
+
+    function clickRemoveImage() {
+        targetElement.style.transform = null;
+        targetElement.style.zIndex = null;
+    }
+    remove_image_button.addEventListener("click", clickRemoveImage);
 }
 
 async function inpaintAnything_clearSelMask() {
-    await new Promise((s) => setTimeout(s, 300));
+    await new Promise((s) => setTimeout(s, 200));
 
     const elemId = "#ia_sel_mask";
 
@@ -33,15 +39,21 @@ async function inpaintAnything_clearSelMask() {
     targetElement.style.transform = null;
     targetElement.style.zIndex = null;
 
-    const sel_mask_clear = document.querySelector(elemId).querySelector("button[aria-label='Clear']");
+    const sel_mask_clear = targetElement.querySelector("button[aria-label='Clear']");
     if (!sel_mask_clear) {
         return;
     }
-    const remove_image_button = document.querySelector(elemId).querySelector("button[aria-label='Remove Image']");
+    const remove_image_button = targetElement.querySelector("button[aria-label='Remove Image']");
     if (!remove_image_button) {
         return;
     }
     sel_mask_clear?.click();
+
+    function clickRemoveImage() {
+        targetElement.style.transform = null;
+        targetElement.style.zIndex = null;
+    }
+    remove_image_button.addEventListener("click", clickRemoveImage);
 }
 
 var uiLoadedCallbacks = [];
