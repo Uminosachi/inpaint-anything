@@ -36,6 +36,15 @@ class IAFileManager:
             os.makedirs(self._ia_models_dir, exist_ok=True)
         return self._ia_models_dir
 
+    @property
+    def savename_prefix(self) -> str:
+        """Get inpaint-anything savename prefix.
+
+        Returns:
+            str: inpaint-anything savename prefix
+        """
+        return datetime.now().strftime("%Y%m%d-%H%M%S")
+
 
 ia_file_manager = IAFileManager()
 
