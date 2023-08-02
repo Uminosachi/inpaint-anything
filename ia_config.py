@@ -1,9 +1,8 @@
 import configparser
-import os
-from ia_ui_items import get_sam_model_ids, get_inp_model_ids
 # import json
+import os
 
-ia_config_ini_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "ia_config.ini")
+from ia_ui_items import get_inp_model_ids, get_sam_model_ids
 
 
 class IAConfig:
@@ -20,10 +19,11 @@ class IAConfig:
     KEY_WEBUI_SAM_MODEL_ID = "inpaint_anything/Segment Anything Model ID/value"
     KEY_WEBUI_INP_MODEL_ID = "inpaint_anything/Inpainting Model ID/value"
 
+    INI_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "ia_config.ini")
+
 
 def setup_ia_config_ini():
-    global ia_config_ini_path
-    if not os.path.isfile(ia_config_ini_path):
+    if not os.path.isfile(IAConfig.INI_PATH):
         ia_config_ini = configparser.ConfigParser()
 
         sam_model_ids = get_sam_model_ids()
@@ -35,16 +35,15 @@ def setup_ia_config_ini():
             IAConfig.KEY_SAM_MODEL_ID: sam_model_ids[sam_model_index],
             IAConfig.KEY_INP_MODEL_ID: inp_model_ids[inp_model_index],
         }
-        with open(ia_config_ini_path, "w", encoding="utf-8") as f:
+        with open(IAConfig.INI_PATH, "w", encoding="utf-8") as f:
             ia_config_ini.write(f)
 
 
 def get_ia_config(key, section=IAConfig.SECTION_DEFAULT):
-    global ia_config_ini_path
     setup_ia_config_ini()
 
     ia_config_ini = configparser.ConfigParser()
-    ia_config_ini.read(ia_config_ini_path, encoding="utf-8")
+    ia_config_ini.read(IAConfig.INI_PATH, encoding="utf-8")
 
     if ia_config_ini.has_option(section, key):
         return ia_config_ini[section][key]
@@ -75,11 +74,10 @@ def get_ia_config_index(key, section=IAConfig.SECTION_DEFAULT):
 
 
 def set_ia_config(key, value, section=IAConfig.SECTION_DEFAULT):
-    global ia_config_ini_path
     setup_ia_config_ini()
 
     ia_config_ini = configparser.ConfigParser()
-    ia_config_ini.read(ia_config_ini_path, encoding="utf-8")
+    ia_config_ini.read(IAConfig.INI_PATH, encoding="utf-8")
 
     if section != IAConfig.SECTION_DEFAULT and not ia_config_ini.has_section(section):
         ia_config_ini[section] = {}
@@ -93,5 +91,5 @@ def set_ia_config(key, value, section=IAConfig.SECTION_DEFAULT):
         ia_config_ini[section] = {}
         ia_config_ini[section][key] = value
 
-    with open(ia_config_ini_path, "w", encoding="utf-8") as f:
+    with open(IAConfig.INI_PATH, "w", encoding="utf-8") as f:
         ia_config_ini.write(f)

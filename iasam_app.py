@@ -64,7 +64,8 @@ parser.add_argument("--save_segment", action="store_true", help="Save the segmen
 parser.add_argument("--offline", action="store_true", help="Enable offline network Inpainting")
 args = parser.parse_args()
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device_cpu = torch.device("cpu")
+device = torch.device("cuda") if torch.cuda.is_available() else device_cpu
 
 
 @clear_cache_decorator
@@ -137,10 +138,10 @@ def get_sam_mask_generator(sam_checkpoint, anime_style_chk=False):
     if os.path.isfile(sam_checkpoint):
         sam = sam_model_registry_local[model_type](checkpoint=sam_checkpoint)
         if platform.system() == "Darwin":
-            if "FastSAM" in os.path.basename(sam_checkpoint):
-                sam.to(device="cpu")
+            if "FastSAM" in os.path.basename(sam_checkpoint) or not ia_check_versions.torch_available_mps:
+                sam.to(device=torch.device("cpu"))
             else:
-                sam.to(device="mps")
+                sam.to(device=torch.device("mps"))
         else:
             sam.to(device=device)
         sam_mask_generator = SamAutomaticMaskGeneratorLocal(
@@ -177,10 +178,10 @@ def get_sam_predictor(sam_checkpoint):
     if os.path.isfile(sam_checkpoint):
         sam = sam_model_registry_local[model_type](checkpoint=sam_checkpoint)
         if platform.system() == "Darwin":
-            if "FastSAM" in os.path.basename(sam_checkpoint):
-                sam.to(device="cpu")
+            if "FastSAM" in os.path.basename(sam_checkpoint) or not ia_check_versions.torch_available_mps:
+                sam.to(device=torch.device("cpu"))
             else:
-                sam.to(device="mps")
+                sam.to(device=torch.device("mps"))
         else:
             sam.to(device=device)
         sam_predictor = SamPredictorLocal(sam)
@@ -531,7 +532,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
         local_files_only = True
         ia_logging.info("local_files_only: {}".format(str(local_files_only)))
 
-    if platform.system() == "Darwin" or device == "cpu":
+    if platform.system() == "Darwin" or device == device_cpu:
         torch_dtype = torch.float32
     else:
         torch_dtype = torch.float16
@@ -573,11 +574,11 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
         seed = random.randint(0, 2147483647)
 
     if platform.system() == "Darwin":
-        pipe = pipe.to("mps")
+        pipe = pipe.to("mps" if ia_check_versions.torch_available_mps else "cpu")
         pipe.enable_attention_slicing()
         generator = torch.Generator("cpu").manual_seed(seed)
     else:
-        if ia_check_versions.diffusers_enable_cpu_offload and device != "cpu":
+        if ia_check_versions.diffusers_enable_cpu_offload and device != device_cpu:
             ia_logging.info("Enable model cpu offload")
             pipe.enable_model_cpu_offload()
         else:
@@ -651,7 +652,7 @@ def run_cleaner(input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk):
 
     ia_logging.info(f"Loading model {cleaner_model_id}")
     if platform.system() == "Darwin":
-        model = ModelManager(name=cleaner_model_id, device="cpu")
+        model = ModelManager(name=cleaner_model_id, device=device_cpu)
     else:
         model = ModelManager(name=cleaner_model_id, device=device)
 
