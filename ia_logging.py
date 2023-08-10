@@ -1,5 +1,6 @@
 import logging
 import warnings
+
 warnings.filterwarnings(action="ignore", category=FutureWarning, module="transformers")
 
 ia_logging = logging.getLogger("Inpaint Anything")
