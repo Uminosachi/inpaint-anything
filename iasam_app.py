@@ -9,6 +9,7 @@ if platform.system() == "Darwin":
     os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
 import random
+import traceback
 from importlib.util import find_spec
 
 import cv2
@@ -132,7 +133,7 @@ def get_sam_mask_generator(sam_checkpoint, anime_style_chk=False):
     if os.path.isfile(sam_checkpoint):
         sam = sam_model_registry_local[model_type](checkpoint=sam_checkpoint)
         if platform.system() == "Darwin":
-            if "FastSAM" in os.path.basename(sam_checkpoint) or not ia_check_versions.torch_available_mps:
+            if "FastSAM" in os.path.basename(sam_checkpoint) or not ia_check_versions.torch_mps_is_available:
                 sam.to(device=torch.device("cpu"))
             else:
                 sam.to(device=torch.device("mps"))
@@ -172,7 +173,7 @@ def get_sam_predictor(sam_checkpoint):
     if os.path.isfile(sam_checkpoint):
         sam = sam_model_registry_local[model_type](checkpoint=sam_checkpoint)
         if platform.system() == "Darwin":
-            if "FastSAM" in os.path.basename(sam_checkpoint) or not ia_check_versions.torch_available_mps:
+            if "FastSAM" in os.path.basename(sam_checkpoint) or not ia_check_versions.torch_mps_is_available:
                 sam.to(device=torch.device("cpu"))
             else:
                 sam.to(device=torch.device("mps"))
@@ -280,6 +281,7 @@ def run_sam(input_image, sam_model_id, sam_image, anime_style_chk=False):
     try:
         sam_masks = sam_mask_generator.generate(input_image)
     except Exception as e:
+        print(traceback.format_exc())
         ia_logging.error(str(e))
         del sam_mask_generator
         ret_sam_image = None if sam_image is None else gr.update()
@@ -568,7 +570,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
         seed = random.randint(0, 2147483647)
 
     if platform.system() == "Darwin":
-        pipe = pipe.to("mps" if ia_check_versions.torch_available_mps else "cpu")
+        pipe = pipe.to("mps" if ia_check_versions.torch_mps_is_available else "cpu")
         pipe.enable_attention_slicing()
         generator = torch.Generator("cpu").manual_seed(seed)
     else:

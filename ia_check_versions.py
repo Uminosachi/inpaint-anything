@@ -49,7 +49,7 @@ class IACheckVersions:
             return False
 
     @cached_property
-    def torch_available_mps(self):
+    def torch_mps_is_available(self):
         if compare_module_version("torch", "2.0.1") < 0:
             if not getattr(torch, "has_mps", False):
                 return False

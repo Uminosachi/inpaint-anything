@@ -13,7 +13,7 @@ def torch_gc():
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect()
-    if ia_check_versions.torch_available_mps:
+    if ia_check_versions.torch_mps_is_available:
         if hasattr(torch, "mps") and hasattr(torch.mps, "empty_cache"):
             torch.mps.empty_cache()
 
