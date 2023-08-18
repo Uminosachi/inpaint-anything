@@ -27,23 +27,16 @@ from torch.hub import download_url_to_file
 from torchvision import transforms
 from tqdm import tqdm
 
-from fast_sam import FastSamAutomaticMaskGenerator, fast_sam_model_registry
 from ia_check_versions import ia_check_versions
 from ia_config import IAConfig, get_ia_config_index, set_ia_config, setup_ia_config_ini
 from ia_file_manager import IAFileManager, download_model_from_hf, ia_file_manager
 from ia_get_dataset_colormap import create_pascal_label_colormap
 from ia_logging import ia_logging
+from ia_sam_manager import get_sam_mask_generator
 from ia_threading import clear_cache_decorator
 from ia_ui_gradio import reload_javascript
 from ia_ui_items import (get_cleaner_model_ids, get_inp_model_ids, get_padding_mode_names,
                          get_sam_model_ids, get_sampler_names)
-from mobile_sam import SamAutomaticMaskGenerator as SamAutomaticMaskGeneratorMobile
-from mobile_sam import SamPredictor as SamPredictorMobile
-from mobile_sam import sam_model_registry as sam_model_registry_mobile
-from segment_anything_fb import SamAutomaticMaskGenerator, SamPredictor, sam_model_registry
-from segment_anything_hq import SamAutomaticMaskGenerator as SamAutomaticMaskGeneratorHQ
-from segment_anything_hq import SamPredictor as SamPredictorHQ
-from segment_anything_hq import sam_model_registry as sam_model_registry_hq
 
 print("platform:", platform.system())
 
@@ -94,96 +87,6 @@ def download_model(sam_model_id):
         return IAFileManager.DOWNLOAD_COMPLETE
     else:
         return "Model already exists"
-
-
-def get_sam_mask_generator(sam_checkpoint, anime_style_chk=False):
-    """Get SAM mask generator.
-
-    Args:
-        sam_checkpoint (str): SAM checkpoint path
-
-    Returns:
-        SamAutomaticMaskGenerator or None: SAM mask generator
-    """
-    # model_type = "vit_h"
-    if "_hq_" in os.path.basename(sam_checkpoint):
-        model_type = os.path.basename(sam_checkpoint)[7:12]
-        sam_model_registry_local = sam_model_registry_hq
-        SamAutomaticMaskGeneratorLocal = SamAutomaticMaskGeneratorHQ
-        points_per_batch = 32
-    elif "FastSAM" in os.path.basename(sam_checkpoint):
-        model_type = os.path.splitext(os.path.basename(sam_checkpoint))[0]
-        sam_model_registry_local = fast_sam_model_registry
-        SamAutomaticMaskGeneratorLocal = FastSamAutomaticMaskGenerator
-        points_per_batch = None
-    elif "mobile_sam" in os.path.basename(sam_checkpoint):
-        model_type = "vit_t"
-        sam_model_registry_local = sam_model_registry_mobile
-        SamAutomaticMaskGeneratorLocal = SamAutomaticMaskGeneratorMobile
-        points_per_batch = 64
-    else:
-        model_type = os.path.basename(sam_checkpoint)[4:9]
-        sam_model_registry_local = sam_model_registry
-        SamAutomaticMaskGeneratorLocal = SamAutomaticMaskGenerator
-        points_per_batch = 64
-
-    pred_iou_thresh = 0.88 if not anime_style_chk else 0.83
-    stability_score_thresh = 0.95 if not anime_style_chk else 0.9
-
-    if os.path.isfile(sam_checkpoint):
-        sam = sam_model_registry_local[model_type](checkpoint=sam_checkpoint)
-        if platform.system() == "Darwin":
-            if "FastSAM" in os.path.basename(sam_checkpoint) or not ia_check_versions.torch_mps_is_available:
-                sam.to(device=torch.device("cpu"))
-            else:
-                sam.to(device=torch.device("mps"))
-        else:
-            sam.to(device=device)
-        sam_mask_generator = SamAutomaticMaskGeneratorLocal(
-            model=sam, points_per_batch=points_per_batch, pred_iou_thresh=pred_iou_thresh, stability_score_thresh=stability_score_thresh)
-    else:
-        sam_mask_generator = None
-
-    return sam_mask_generator
-
-
-def get_sam_predictor(sam_checkpoint):
-    """Get SAM predictor.
-
-    Args:
-        sam_checkpoint (str): SAM checkpoint path
-
-    Returns:
-        SamPredictor or None: SAM predictor
-    """
-    # model_type = "vit_h"
-    if "_hq_" in os.path.basename(sam_checkpoint):
-        model_type = os.path.basename(sam_checkpoint)[7:12]
-        sam_model_registry_local = sam_model_registry_hq
-        SamPredictorLocal = SamPredictorHQ
-    elif "mobile_sam" in os.path.basename(sam_checkpoint):
-        model_type = "vit_t"
-        sam_model_registry_local = sam_model_registry_mobile
-        SamPredictorLocal = SamPredictorMobile
-    else:
-        model_type = os.path.basename(sam_checkpoint)[4:9]
-        sam_model_registry_local = sam_model_registry
-        SamPredictorLocal = SamPredictor
-
-    if os.path.isfile(sam_checkpoint):
-        sam = sam_model_registry_local[model_type](checkpoint=sam_checkpoint)
-        if platform.system() == "Darwin":
-            if "FastSAM" in os.path.basename(sam_checkpoint) or not ia_check_versions.torch_mps_is_available:
-                sam.to(device=torch.device("cpu"))
-            else:
-                sam.to(device=torch.device("mps"))
-        else:
-            sam.to(device=device)
-        sam_predictor = SamPredictorLocal(sam)
-    else:
-        sam_predictor = None
-
-    return sam_predictor
 
 
 sam_dict = dict(sam_masks=None, mask_image=None, cnet=None, orig_image=None, pad_mask=None)
