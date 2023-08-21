@@ -1,6 +1,5 @@
 import argparse
 # import math
-import copy
 import gc
 import os
 import platform
@@ -25,14 +24,12 @@ from PIL import Image, ImageFilter
 from PIL.PngImagePlugin import PngInfo
 from torch.hub import download_url_to_file
 from torchvision import transforms
-from tqdm import tqdm
 
+import inpalib
 from ia_check_versions import ia_check_versions
 from ia_config import IAConfig, get_ia_config_index, set_ia_config, setup_ia_config_ini
 from ia_file_manager import IAFileManager, download_model_from_hf, ia_file_manager
-from ia_get_dataset_colormap import create_pascal_label_colormap
 from ia_logging import ia_logging
-from ia_sam_manager import get_sam_mask_generator
 from ia_threading import clear_cache_decorator
 from ia_ui_gradio import reload_javascript
 from ia_ui_items import (get_cleaner_model_ids, get_inp_model_ids, get_padding_mode_names,
@@ -158,8 +155,7 @@ def run_padding(input_image, pad_scale_width, pad_scale_height, pad_lr_barance, 
 @clear_cache_decorator
 def run_sam(input_image, sam_model_id, sam_image, anime_style_chk=False):
     global sam_dict
-    sam_checkpoint = os.path.join(ia_file_manager.models_dir, sam_model_id)
-    if not os.path.isfile(sam_checkpoint):
+    if not inpalib.sam_file_exists(sam_model_id):
         ret_sam_image = None if sam_image is None else gr.update()
         return ret_sam_image, f"{sam_model_id} not found, please download"
 
@@ -175,73 +171,26 @@ def run_sam(input_image, sam_model_id, sam_image, anime_style_chk=False):
 
     ia_logging.info(f"input_image: {input_image.shape} {input_image.dtype}")
 
-    cm_pascal = create_pascal_label_colormap()
-    seg_colormap = cm_pascal
-    seg_colormap = np.array([c for c in seg_colormap if max(c) >= 64], dtype=np.uint8)
-
-    sam_mask_generator = get_sam_mask_generator(sam_checkpoint, anime_style_chk)
-    ia_logging.info(f"{sam_mask_generator.__class__.__name__} {sam_model_id}")
     try:
-        sam_masks = sam_mask_generator.generate(input_image)
+        sam_masks = inpalib.generate_sam_masks(input_image, sam_model_id, anime_style_chk)
+        sam_masks = inpalib.sort_masks_by_area(sam_masks)
+        sam_masks = inpalib.insert_mask_to_sam_masks(sam_masks, sam_dict["pad_mask"])
+
+        seg_image = inpalib.create_seg_color_image(input_image, sam_masks)
+
+        sam_dict["sam_masks"] = sam_masks
+
     except Exception as e:
         print(traceback.format_exc())
         ia_logging.error(str(e))
-        del sam_mask_generator
         ret_sam_image = None if sam_image is None else gr.update()
-        return ret_sam_image, "SAM generate failed"
-
-    if anime_style_chk:
-        for sam_mask in sam_masks:
-            sam_mask_seg = sam_mask["segmentation"]
-            sam_mask_seg = cv2.morphologyEx(sam_mask_seg.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
-            sam_mask_seg = cv2.morphologyEx(sam_mask_seg.astype(np.uint8), cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
-            sam_mask["segmentation"] = sam_mask_seg.astype(bool)
-
-    ia_logging.info("sam_masks: {}".format(len(sam_masks)))
-    sam_masks = sorted(sam_masks, key=lambda x: np.sum(x.get("segmentation").astype(np.uint32)))
-    if sam_dict["pad_mask"] is not None:
-        if (len(sam_masks) > 0 and
-                sam_masks[0]["segmentation"].shape == sam_dict["pad_mask"]["segmentation"].shape and
-                np.any(sam_dict["pad_mask"]["segmentation"])):
-            sam_masks.insert(0, sam_dict["pad_mask"])
-            ia_logging.info("insert pad_mask to sam_masks")
-    sam_masks = sam_masks[:len(seg_colormap)]
-
-    with tqdm(total=len(sam_masks), desc="Processing segments") as progress_bar:
-        canvas_image = np.zeros((*input_image.shape[:2], 1), dtype=np.uint8)
-        for idx, seg_dict in enumerate(sam_masks[0:min(255, len(sam_masks))]):
-            seg_mask = np.expand_dims(seg_dict["segmentation"].astype(np.uint8), axis=-1)
-            canvas_mask = np.logical_not(canvas_image.astype(bool)).astype(np.uint8)
-            seg_color = np.array([idx+1], dtype=np.uint8) * seg_mask * canvas_mask
-            canvas_image = canvas_image + seg_color
-            progress_bar.update(1)
-        seg_colormap = np.insert(seg_colormap, 0, [0, 0, 0], axis=0)
-        temp_canvas_image = np.apply_along_axis(lambda x: seg_colormap[x[0]], axis=-1, arr=canvas_image)
-        if len(sam_masks) > 255:
-            canvas_image = canvas_image.astype(bool).astype(np.uint8)
-            for idx, seg_dict in enumerate(sam_masks[255:min(509, len(sam_masks))]):
-                seg_mask = np.expand_dims(seg_dict["segmentation"].astype(np.uint8), axis=-1)
-                canvas_mask = np.logical_not(canvas_image.astype(bool)).astype(np.uint8)
-                seg_color = np.array([idx+2], dtype=np.uint8) * seg_mask * canvas_mask
-                canvas_image = canvas_image + seg_color
-                progress_bar.update(1)
-            seg_colormap = seg_colormap[256:]
-            seg_colormap = np.insert(seg_colormap, 0, [0, 0, 0], axis=0)
-            seg_colormap = np.insert(seg_colormap, 0, [0, 0, 0], axis=0)
-            canvas_image = np.apply_along_axis(lambda x: seg_colormap[x[0]], axis=-1, arr=canvas_image)
-            canvas_image = temp_canvas_image + canvas_image
-        else:
-            canvas_image = temp_canvas_image
-    seg_image = canvas_image.astype(np.uint8)
+        return ret_sam_image, "Segment Anything failed"
 
     if args.save_segment:
-        save_name = "_".join([ia_file_manager.savename_prefix, os.path.splitext(os.path.basename(sam_checkpoint))[0]]) + ".png"
+        save_name = "_".join([ia_file_manager.savename_prefix, os.path.splitext(sam_model_id)[0]]) + ".png"
         save_name = os.path.join(ia_file_manager.outputs_dir, save_name)
         Image.fromarray(seg_image).save(save_name)
 
-    sam_dict["sam_masks"] = copy.deepcopy(sam_masks)
-
-    del sam_masks
     if sam_image is None:
         return seg_image, "Segment Anything complete"
     else:
@@ -259,37 +208,21 @@ def select_mask(input_image, sam_image, invert_chk, ignore_black_chk, sel_mask):
         return ret_sel_mask
     sam_masks = sam_dict["sam_masks"]
 
-    image = sam_image["image"]
+    # image = sam_image["image"]
     mask = sam_image["mask"][:, :, 0:1]
 
-    if len(sam_masks) > 0 and sam_masks[0]["segmentation"].shape[:2] != mask.shape[:2]:
-        ia_logging.error("sam_masks shape not match")
+    try:
+        seg_image = inpalib.create_mask_image(mask, sam_masks, ignore_black_chk)
+        if invert_chk:
+            seg_image = inpalib.invert_mask(seg_image)
+
+        sam_dict["mask_image"] = seg_image
+
+    except Exception as e:
+        print(traceback.format_exc())
+        ia_logging.error(str(e))
         ret_sel_mask = None if sel_mask is None else gr.update()
         return ret_sel_mask
-
-    canvas_image = np.zeros((*image.shape[:2], 1), dtype=np.uint8)
-    mask_region = np.zeros((*image.shape[:2], 1), dtype=np.uint8)
-    for idx, seg_dict in enumerate(sam_masks):
-        seg_mask = np.expand_dims(seg_dict["segmentation"].astype(np.uint8), axis=-1)
-        canvas_mask = np.logical_not(canvas_image.astype(bool)).astype(np.uint8)
-        if (seg_mask * canvas_mask * mask).astype(bool).any():
-            mask_region = mask_region + (seg_mask * canvas_mask)
-        seg_color = seg_mask * canvas_mask
-        canvas_image = canvas_image + seg_color
-
-    if not ignore_black_chk:
-        canvas_mask = np.logical_not(canvas_image.astype(bool)).astype(np.uint8)
-        if (canvas_mask * mask).astype(bool).any():
-            mask_region = mask_region + (canvas_mask)
-
-    mask_region = np.tile(mask_region * 255, (1, 1, 3))
-
-    seg_image = mask_region.astype(np.uint8)
-
-    if invert_chk:
-        seg_image = np.logical_not(seg_image.astype(bool)).astype(np.uint8) * 255
-
-    sam_dict["mask_image"] = seg_image
 
     if input_image is not None and input_image.shape == seg_image.shape:
         ret_image = cv2.addWeighted(input_image, 0.5, seg_image, 0.5, 0)
@@ -791,12 +724,10 @@ def on_ui_tabs():
                 run_inpaint,
                 inputs=[input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, inp_model_id, save_mask_chk, composite_chk, sampler_name],
                 outputs=[out_image])
-
             cleaner_btn.click(
                 run_cleaner,
                 inputs=[input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk],
                 outputs=[cleaner_out_image])
-
             get_alpha_image_btn.click(
                 run_get_alpha_image,
                 inputs=[input_image, sel_mask],
