@@ -5,6 +5,8 @@ import torch
 
 from fast_sam import FastSamAutomaticMaskGenerator, fast_sam_model_registry
 from ia_check_versions import ia_check_versions
+from ia_config import IAConfig
+from ia_logging import ia_logging
 from mobile_sam import SamAutomaticMaskGenerator as SamAutomaticMaskGeneratorMobile
 from mobile_sam import SamPredictor as SamPredictorMobile
 from mobile_sam import sam_model_registry as sam_model_registry_mobile
@@ -59,7 +61,11 @@ def get_sam_mask_generator(sam_checkpoint, anime_style_chk=False):
             else:
                 sam.to(device=torch.device("mps"))
         else:
-            sam.to(device=device)
+            if IAConfig.global_args.get("sam_cpu", False):
+                ia_logging.info("SAM is running on CPU... (the option has been selected)")
+                sam.to(device=device_cpu)
+            else:
+                sam.to(device=device)
         sam_mask_generator = SamAutomaticMaskGeneratorLocal(
             model=sam, points_per_batch=points_per_batch, pred_iou_thresh=pred_iou_thresh, stability_score_thresh=stability_score_thresh)
     else:
@@ -101,7 +107,11 @@ def get_sam_predictor(sam_checkpoint):
             else:
                 sam.to(device=torch.device("mps"))
         else:
-            sam.to(device=device)
+            if IAConfig.global_args.get("sam_cpu", False):
+                ia_logging.info("SAM is running on CPU... (the option has been selected)")
+                sam.to(device=device_cpu)
+            else:
+                sam.to(device=device)
         sam_predictor = SamPredictorLocal(sam)
     else:
         sam_predictor = None

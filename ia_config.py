@@ -26,6 +26,8 @@ class IAConfig:
         INI=os.path.join(os.path.dirname(os.path.realpath(__file__)), "ia_config.ini"),
     )
 
+    global_args = {}
+
 
 def setup_ia_config_ini():
     if not os.path.isfile(IAConfig.PATHS.INI):
