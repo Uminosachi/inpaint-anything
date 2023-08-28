@@ -326,13 +326,14 @@ def auto_resize_to_pil(input_image, mask_image):
             scale = new_width / width
         resize_height = int(height*scale+0.5)
         resize_width = int(width*scale+0.5)
-        ia_logging.info(f"resize: ({height}, {width}) -> ({resize_height}, {resize_width})")
-        init_image = transforms.functional.resize(init_image, (resize_height, resize_width), transforms.InterpolationMode.LANCZOS)
-        mask_image = transforms.functional.resize(mask_image, (resize_height, resize_width), transforms.InterpolationMode.LANCZOS)
-        ia_logging.info(f"center_crop: ({resize_height}, {resize_width}) -> ({new_height}, {new_width})")
-        init_image = transforms.functional.center_crop(init_image, (new_height, new_width))
-        mask_image = transforms.functional.center_crop(mask_image, (new_height, new_width))
-        assert init_image.size == mask_image.size, "The size of image and mask do not match"
+        if height != resize_height or width != resize_width:
+            ia_logging.info(f"resize: ({height}, {width}) -> ({resize_height}, {resize_width})")
+            init_image = transforms.functional.resize(init_image, (resize_height, resize_width), transforms.InterpolationMode.LANCZOS)
+            mask_image = transforms.functional.resize(mask_image, (resize_height, resize_width), transforms.InterpolationMode.LANCZOS)
+        if resize_height != new_height or resize_width != new_width:
+            ia_logging.info(f"center_crop: ({resize_height}, {resize_width}) -> ({new_height}, {new_width})")
+            init_image = transforms.functional.center_crop(init_image, (new_height, new_width))
+            mask_image = transforms.functional.center_crop(mask_image, (new_height, new_width))
 
     return init_image, mask_image
 
@@ -410,7 +411,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
     if platform.system() == "Darwin":
         pipe = pipe.to("mps" if ia_check_versions.torch_mps_is_available else "cpu")
         pipe.enable_attention_slicing()
-        generator = torch.Generator("cpu").manual_seed(seed)
+        generator = torch.Generator(device_cpu).manual_seed(seed)
     else:
         if ia_check_versions.diffusers_enable_cpu_offload and device != device_cpu:
             ia_logging.info("Enable model cpu offload")
@@ -423,7 +424,10 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
         else:
             ia_logging.info("Enable attention slicing")
             pipe.enable_attention_slicing()
-        generator = torch.Generator(device).manual_seed(seed)
+        if "privateuseone" in str(device):
+            generator = torch.Generator(device_cpu).manual_seed(seed)
+        else:
+            generator = torch.Generator(device).manual_seed(seed)
 
     init_image, mask_image = auto_resize_to_pil(input_image, mask_image)
     width, height = init_image.size
