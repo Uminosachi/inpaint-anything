@@ -6,6 +6,7 @@ import torch
 from fast_sam import FastSamAutomaticMaskGenerator, fast_sam_model_registry
 from ia_check_versions import ia_check_versions
 from ia_config import IAConfig
+from ia_devices import devices
 from ia_logging import ia_logging
 from mobile_sam import SamAutomaticMaskGenerator as SamAutomaticMaskGeneratorMobile
 from mobile_sam import SamPredictor as SamPredictorMobile
@@ -14,9 +15,6 @@ from segment_anything_fb import SamAutomaticMaskGenerator, SamPredictor, sam_mod
 from segment_anything_hq import SamAutomaticMaskGenerator as SamAutomaticMaskGeneratorHQ
 from segment_anything_hq import SamPredictor as SamPredictorHQ
 from segment_anything_hq import sam_model_registry as sam_model_registry_hq
-
-device_cpu = torch.device("cpu")
-device = torch.device("cuda") if torch.cuda.is_available() else device_cpu
 
 
 def get_sam_mask_generator(sam_checkpoint, anime_style_chk=False):
@@ -63,9 +61,9 @@ def get_sam_mask_generator(sam_checkpoint, anime_style_chk=False):
         else:
             if IAConfig.global_args.get("sam_cpu", False):
                 ia_logging.info("SAM is running on CPU... (the option has been selected)")
-                sam.to(device=device_cpu)
+                sam.to(device=devices.cpu)
             else:
-                sam.to(device=device)
+                sam.to(device=devices.device)
         sam_mask_generator = SamAutomaticMaskGeneratorLocal(
             model=sam, points_per_batch=points_per_batch, pred_iou_thresh=pred_iou_thresh, stability_score_thresh=stability_score_thresh)
     else:
@@ -109,9 +107,9 @@ def get_sam_predictor(sam_checkpoint):
         else:
             if IAConfig.global_args.get("sam_cpu", False):
                 ia_logging.info("SAM is running on CPU... (the option has been selected)")
-                sam.to(device=device_cpu)
+                sam.to(device=devices.cpu)
             else:
-                sam.to(device=device)
+                sam.to(device=devices.device)
         sam_predictor = SamPredictorLocal(sam)
     else:
         sam_predictor = None

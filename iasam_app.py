@@ -28,9 +28,10 @@ from torchvision import transforms
 import inpalib
 from ia_check_versions import ia_check_versions
 from ia_config import IAConfig, get_ia_config_index, set_ia_config, setup_ia_config_ini
+from ia_devices import devices
 from ia_file_manager import IAFileManager, download_model_from_hf, ia_file_manager
 from ia_logging import ia_logging
-from ia_threading import clear_cache_decorator
+from ia_threading import clear_cache_decorator, clear_cache_yield_decorator
 from ia_ui_gradio import reload_javascript
 from ia_ui_items import (get_cleaner_model_ids, get_inp_model_ids, get_padding_mode_names,
                          get_sam_model_ids, get_sampler_names)
@@ -50,9 +51,6 @@ parser.add_argument("--offline", action="store_true", help="Execute inpainting u
 parser.add_argument("--sam_cpu", action="store_true", help="Perform the Segment Anything operation on CPU.")
 args = parser.parse_args()
 IAConfig.global_args.update(args.__dict__)
-
-device_cpu = torch.device("cpu")
-device = torch.device("cuda") if torch.cuda.is_available() else device_cpu
 
 
 @clear_cache_decorator
@@ -338,16 +336,18 @@ def auto_resize_to_pil(input_image, mask_image):
     return init_image, mask_image
 
 
-@clear_cache_decorator
-def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, inp_model_id, save_mask_chk, composite_chk, sampler_name="DDIM"):
+@clear_cache_yield_decorator
+def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, inp_model_id, save_mask_chk, composite_chk,
+                sampler_name="DDIM", iteration_count=1):
     global sam_dict
     if input_image is None or sam_dict["mask_image"] is None or sel_mask is None:
-        return None
+        ia_logging.error("The image or mask does not exist")
+        return
 
     mask_image = sam_dict["mask_image"]
     if input_image.shape != mask_image.shape:
-        ia_logging.error("The size of image and mask do not match")
-        return None
+        ia_logging.error("The sizes of the image and mask do not match")
+        return
 
     set_ia_config(IAConfig.KEYS.INP_MODEL_ID, inp_model_id, IAConfig.SECTIONS.USER)
 
@@ -362,12 +362,12 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
     if local_file_status != IAFileManager.DOWNLOAD_COMPLETE:
         if config_offline_inpainting:
             ia_logging.warning(local_file_status)
-            return None
+            return
     else:
         local_files_only = True
         ia_logging.info("local_files_only: {}".format(str(local_files_only)))
 
-    if platform.system() == "Darwin" or device == device_cpu:
+    if platform.system() == "Darwin" or devices.device == devices.cpu:
         torch_dtype = torch.float32
     else:
         torch_dtype = torch.float16
@@ -385,9 +385,9 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
                     pipe = StableDiffusionInpaintPipeline.from_pretrained(inp_model_id, torch_dtype=torch_dtype, force_download=True)
                 except Exception as e:
                     ia_logging.error(str(e))
-                    return None
+                    return
         else:
-            return None
+            return
     pipe.safety_checker = None
 
     ia_logging.info(f"Using sampler {sampler_name}")
@@ -405,94 +405,98 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
         ia_logging.info("Sampler fallback to DDIM")
         pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
 
-    if seed < 0:
-        seed = random.randint(0, 2147483647)
-
     if platform.system() == "Darwin":
         pipe = pipe.to("mps" if ia_check_versions.torch_mps_is_available else "cpu")
         pipe.enable_attention_slicing()
-        generator = torch.Generator(device_cpu).manual_seed(seed)
+        torch_generator = torch.Generator(devices.cpu)
     else:
-        if ia_check_versions.diffusers_enable_cpu_offload and device != device_cpu:
+        if ia_check_versions.diffusers_enable_cpu_offload and devices.device != devices.cpu:
             ia_logging.info("Enable model cpu offload")
             pipe.enable_model_cpu_offload()
         else:
-            pipe = pipe.to(device)
+            pipe = pipe.to(devices.device)
         if xformers_available:
             ia_logging.info("Enable xformers memory efficient attention")
             pipe.enable_xformers_memory_efficient_attention()
         else:
             ia_logging.info("Enable attention slicing")
             pipe.enable_attention_slicing()
-        if "privateuseone" in str(getattr(device, "type", "")):
-            generator = torch.Generator(device_cpu).manual_seed(seed)
+        if "privateuseone" in str(getattr(devices.device, "type", "")):
+            torch_generator = torch.Generator(devices.cpu)
         else:
-            generator = torch.Generator(device).manual_seed(seed)
+            torch_generator = torch.Generator(devices.device)
 
     init_image, mask_image = auto_resize_to_pil(input_image, mask_image)
     width, height = init_image.size
 
-    pipe_args_dict = {
-        "prompt": prompt,
-        "image": init_image,
-        "width": width,
-        "height": height,
-        "mask_image": mask_image,
-        "num_inference_steps": ddim_steps,
-        "guidance_scale": cfg_scale,
-        "negative_prompt": n_prompt,
-        "generator": generator,
-        }
+    for count in range(int(iteration_count)):
+        gc.collect()
+        if seed < 0 or count > 0:
+            seed = random.randint(0, 2147483647)
 
-    output_image = pipe(**pipe_args_dict).images[0]
+        generator = torch_generator.manual_seed(seed)
 
-    if composite_chk:
-        mask_image = Image.fromarray(cv2.dilate(np.array(mask_image), np.ones((3, 3), dtype=np.uint8), iterations=4))
-        output_image = Image.composite(output_image, init_image, mask_image.convert("L").filter(ImageFilter.GaussianBlur(3)))
+        pipe_args_dict = {
+            "prompt": prompt,
+            "image": init_image,
+            "width": width,
+            "height": height,
+            "mask_image": mask_image,
+            "num_inference_steps": ddim_steps,
+            "guidance_scale": cfg_scale,
+            "negative_prompt": n_prompt,
+            "generator": generator,
+            }
 
-    generation_params = {
-        "Steps": ddim_steps,
-        "Sampler": sampler_name,
-        "CFG scale": cfg_scale,
-        "Seed": seed,
-        "Size": f"{width}x{height}",
-        "Model": inp_model_id,
-        }
+        output_image = pipe(**pipe_args_dict).images[0]
 
-    generation_params_text = ", ".join([k if k == v else f"{k}: {v}" for k, v in generation_params.items() if v is not None])
-    prompt_text = prompt if prompt else ""
-    negative_prompt_text = "\nNegative prompt: " + n_prompt if n_prompt else ""
-    infotext = f"{prompt_text}{negative_prompt_text}\n{generation_params_text}".strip()
+        if composite_chk:
+            dilate_mask_image = Image.fromarray(cv2.dilate(np.array(mask_image), np.ones((3, 3), dtype=np.uint8), iterations=4))
+            output_image = Image.composite(output_image, init_image, dilate_mask_image.convert("L").filter(ImageFilter.GaussianBlur(3)))
 
-    metadata = PngInfo()
-    metadata.add_text("parameters", infotext)
+        generation_params = {
+            "Steps": ddim_steps,
+            "Sampler": sampler_name,
+            "CFG scale": cfg_scale,
+            "Seed": seed,
+            "Size": f"{width}x{height}",
+            "Model": inp_model_id,
+            }
 
-    save_name = "_".join([ia_file_manager.savename_prefix, os.path.basename(inp_model_id), str(seed)]) + ".png"
-    save_name = os.path.join(ia_file_manager.outputs_dir, save_name)
-    output_image.save(save_name, pnginfo=metadata)
+        generation_params_text = ", ".join([k if k == v else f"{k}: {v}" for k, v in generation_params.items() if v is not None])
+        prompt_text = prompt if prompt else ""
+        negative_prompt_text = "\nNegative prompt: " + n_prompt if n_prompt else ""
+        infotext = f"{prompt_text}{negative_prompt_text}\n{generation_params_text}".strip()
 
-    del pipe
-    return output_image
+        metadata = PngInfo()
+        metadata.add_text("parameters", infotext)
+
+        save_name = "_".join([ia_file_manager.savename_prefix, os.path.basename(inp_model_id), str(seed)]) + ".png"
+        save_name = os.path.join(ia_file_manager.outputs_dir, save_name)
+        output_image.save(save_name, pnginfo=metadata)
+
+        yield output_image
 
 
 @clear_cache_decorator
 def run_cleaner(input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk):
     global sam_dict
     if input_image is None or sam_dict["mask_image"] is None or sel_mask is None:
+        ia_logging.error("The image or mask does not exist")
         return None
 
     mask_image = sam_dict["mask_image"]
     if input_image.shape != mask_image.shape:
-        ia_logging.error("The size of image and mask do not match")
+        ia_logging.error("The sizes of the image and mask do not match")
         return None
 
     save_mask_image(mask_image, cleaner_save_mask_chk)
 
     ia_logging.info(f"Loading model {cleaner_model_id}")
     if platform.system() == "Darwin":
-        model = ModelManager(name=cleaner_model_id, device=device_cpu)
+        model = ModelManager(name=cleaner_model_id, device=devices.cpu)
     else:
-        model = ModelManager(name=cleaner_model_id, device=device)
+        model = ModelManager(name=cleaner_model_id, device=devices.device)
 
     init_image, mask_image = auto_resize_to_pil(input_image, mask_image)
     width, height = init_image.size
@@ -528,11 +532,12 @@ def run_cleaner(input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk):
 def run_get_alpha_image(input_image, sel_mask):
     global sam_dict
     if input_image is None or sam_dict["mask_image"] is None or sel_mask is None:
+        ia_logging.error("The image or mask does not exist")
         return None, ""
 
     mask_image = sam_dict["mask_image"]
     if input_image.shape != mask_image.shape:
-        ia_logging.error("The size of image and mask do not match")
+        ia_logging.error("The sizes of the image and mask do not match")
         return None, ""
 
     alpha_image = Image.fromarray(input_image).convert("RGBA")
@@ -622,6 +627,7 @@ def on_ui_tabs():
                     prompt = gr.Textbox(label="Inpainting Prompt", elem_id="sd_prompt")
                     n_prompt = gr.Textbox(label="Negative Prompt", elem_id="sd_n_prompt")
                     with gr.Accordion("Advanced options", elem_id="inp_advanced_options", open=False):
+                        composite_chk = gr.Checkbox(label="Mask area Only", elem_id="composite_chk", value=True, show_label=True, interactive=True)
                         with gr.Row():
                             with gr.Column():
                                 sampler_name = gr.Dropdown(label="Sampler", elem_id="sampler_name", choices=sampler_names,
@@ -645,8 +651,9 @@ def on_ui_tabs():
                             with gr.Row():
                                 inpaint_btn = gr.Button("Run Inpainting", elem_id="inpaint_btn", variant="primary")
                             with gr.Row():
-                                composite_chk = gr.Checkbox(label="Mask area Only", elem_id="composite_chk", value=True, show_label=True, interactive=True)
-                                save_mask_chk = gr.Checkbox(label="Save mask", elem_id="save_mask_chk", show_label=True, interactive=True)
+                                save_mask_chk = gr.Checkbox(label="Save mask", elem_id="save_mask_chk",
+                                                            value=False, show_label=False, interactive=False, visible=False)
+                                iteration_count = gr.Slider(label="Iteration", elem_id="iteration_count", minimum=1, maximum=10, value=1, step=1)
 
                     with gr.Row():
                         out_image = gr.Image(label="Inpainted image", elem_id="out_image", type="pil",
@@ -661,7 +668,8 @@ def on_ui_tabs():
                             with gr.Row():
                                 cleaner_btn = gr.Button("Run Cleaner", elem_id="cleaner_btn", variant="primary")
                             with gr.Row():
-                                cleaner_save_mask_chk = gr.Checkbox(label="Save mask", elem_id="cleaner_save_mask_chk", show_label=True, interactive=True)
+                                cleaner_save_mask_chk = gr.Checkbox(label="Save mask", elem_id="cleaner_save_mask_chk",
+                                                                    value=False, show_label=False, interactive=False, visible=False)
 
                     with gr.Row():
                         cleaner_out_image = gr.Image(label="Cleaned image", elem_id="cleaner_out_image", type="pil",
@@ -728,7 +736,8 @@ def on_ui_tabs():
 
             inpaint_btn.click(
                 run_inpaint,
-                inputs=[input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, inp_model_id, save_mask_chk, composite_chk, sampler_name],
+                inputs=[input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, inp_model_id, save_mask_chk, composite_chk,
+                        sampler_name, iteration_count],
                 outputs=[out_image])
             cleaner_btn.click(
                 run_cleaner,
