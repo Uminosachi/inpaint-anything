@@ -8,7 +8,7 @@ from ia_ui_items import get_inp_model_ids, get_sam_model_ids
 
 class IAConfig:
     SECTIONS = SimpleNamespace(
-        DEFAULT="DEFAULT",
+        DEFAULT=configparser.DEFAULTSECT,
         USER="USER",
     )
 
@@ -17,31 +17,44 @@ class IAConfig:
         INP_MODEL_ID="inp_model_id",
     )
 
-    WEBUI_KEYS = SimpleNamespace(
-        SAM_MODEL_ID="inpaint_anything/Segment Anything Model ID/value",
-        INP_MODEL_ID="inpaint_anything/Inpainting Model ID/value",
-    )
-
     PATHS = SimpleNamespace(
         INI=os.path.join(os.path.dirname(os.path.realpath(__file__)), "ia_config.ini"),
     )
 
     global_args = {}
 
+    def __init__(self):
+        self.ids_dict = {}
+        self.ids_dict[IAConfig.KEYS.SAM_MODEL_ID] = {
+            "list": get_sam_model_ids(),
+            "index": 1,
+        }
+        self.ids_dict[IAConfig.KEYS.INP_MODEL_ID] = {
+            "list": get_inp_model_ids(),
+            "index": 0,
+        }
+
+
+ia_config = IAConfig()
+
 
 def setup_ia_config_ini():
-    if not os.path.isfile(IAConfig.PATHS.INI):
-        ia_config_ini = configparser.ConfigParser()
+    ia_config_ini = configparser.ConfigParser(defaults={})
+    if os.path.isfile(IAConfig.PATHS.INI):
+        ia_config_ini.read(IAConfig.PATHS.INI, encoding="utf-8")
 
-        sam_model_ids = get_sam_model_ids()
-        sam_model_index = 1
-        inp_model_ids = get_inp_model_ids()
-        inp_model_index = 0
+    changed = False
+    for key, ids_info in ia_config.ids_dict.items():
+        if not ia_config_ini.has_option(IAConfig.SECTIONS.DEFAULT, key):
+            if len(ids_info["list"]) > ids_info["index"]:
+                ia_config_ini[IAConfig.SECTIONS.DEFAULT][key] = ids_info["list"][ids_info["index"]]
+                changed = True
+        else:
+            if len(ids_info["list"]) > ids_info["index"] and ia_config_ini[IAConfig.SECTIONS.DEFAULT][key] != ids_info["list"][ids_info["index"]]:
+                ia_config_ini[IAConfig.SECTIONS.DEFAULT][key] = ids_info["list"][ids_info["index"]]
+                changed = True
 
-        ia_config_ini[IAConfig.SECTIONS.DEFAULT] = {
-            IAConfig.KEYS.SAM_MODEL_ID: sam_model_ids[sam_model_index],
-            IAConfig.KEYS.INP_MODEL_ID: inp_model_ids[inp_model_index],
-        }
+    if changed:
         with open(IAConfig.PATHS.INI, "w", encoding="utf-8") as f:
             ia_config_ini.write(f)
 
@@ -49,7 +62,7 @@ def setup_ia_config_ini():
 def get_ia_config(key, section=IAConfig.SECTIONS.DEFAULT):
     setup_ia_config_ini()
 
-    ia_config_ini = configparser.ConfigParser()
+    ia_config_ini = configparser.ConfigParser(defaults={})
     ia_config_ini.read(IAConfig.PATHS.INI, encoding="utf-8")
 
     if ia_config_ini.has_option(section, key):
@@ -65,32 +78,32 @@ def get_ia_config(key, section=IAConfig.SECTIONS.DEFAULT):
 def get_ia_config_index(key, section=IAConfig.SECTIONS.DEFAULT):
     value = get_ia_config(key, section)
 
+    ids_dict = ia_config.ids_dict
     if value is None:
-        return None
-
-    if key == IAConfig.KEYS.SAM_MODEL_ID:
-        sam_model_ids = get_sam_model_ids()
-        idx = sam_model_ids.index(value) if value in sam_model_ids else 1
-    elif key == IAConfig.KEYS.INP_MODEL_ID:
-        inp_model_ids = get_inp_model_ids()
-        idx = inp_model_ids.index(value) if value in inp_model_ids else 0
+        if key in ids_dict.keys():
+            ids_info = ids_dict[key]
+            return ids_info["index"]
+        else:
+            return 0
     else:
-        idx = None
-
-    return idx
+        if key in ids_dict.keys():
+            ids_info = ids_dict[key]
+            return ids_info["list"].index(value) if value in ids_info["list"] else ids_info["index"]
+        else:
+            return 0
 
 
 def set_ia_config(key, value, section=IAConfig.SECTIONS.DEFAULT):
     setup_ia_config_ini()
 
-    ia_config_ini = configparser.ConfigParser()
+    ia_config_ini = configparser.ConfigParser(defaults={})
     ia_config_ini.read(IAConfig.PATHS.INI, encoding="utf-8")
+
+    if ia_config_ini.has_option(section, key) and ia_config_ini[section][key] == value:
+        return
 
     if section != IAConfig.SECTIONS.DEFAULT and not ia_config_ini.has_section(section):
         ia_config_ini[section] = {}
-    else:
-        if ia_config_ini.has_option(section, key) and ia_config_ini[section][key] == value:
-            return
 
     try:
         ia_config_ini[section][key] = value

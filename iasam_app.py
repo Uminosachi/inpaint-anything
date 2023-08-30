@@ -446,7 +446,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
             "guidance_scale": cfg_scale,
             "negative_prompt": n_prompt,
             "generator": generator,
-            }
+        }
 
         output_image = pipe(**pipe_args_dict).images[0]
 
@@ -461,7 +461,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
             "Seed": seed,
             "Size": f"{width}x{height}",
             "Model": inp_model_id,
-            }
+        }
 
         generation_params_text = ", ".join([k if k == v else f"{k}: {v}" for k, v in generation_params.items() if v is not None])
         prompt_text = prompt if prompt else ""
@@ -572,10 +572,8 @@ def on_ui_tabs():
     sampler_names = get_sampler_names()
     sam_model_ids = get_sam_model_ids()
     sam_model_index = get_ia_config_index(IAConfig.KEYS.SAM_MODEL_ID, IAConfig.SECTIONS.USER)
-    sam_model_index = sam_model_index if sam_model_index is not None else 1
     inp_model_ids = get_inp_model_ids()
     inp_model_index = get_ia_config_index(IAConfig.KEYS.INP_MODEL_ID, IAConfig.SECTIONS.USER)
-    inp_model_index = inp_model_index if inp_model_index is not None else 0
     cleaner_model_ids = get_cleaner_model_ids()
     padding_mode_names = get_padding_mode_names()
 

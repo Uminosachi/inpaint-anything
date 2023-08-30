@@ -13,7 +13,7 @@ def get_sampler_names():
         "Euler a",
         "DPM2 Karras",
         "DPM2 a Karras",
-        ]
+    ]
     return sampler_names
 
 
@@ -33,7 +33,7 @@ def get_sam_model_ids():
         "FastSAM-x.pt",
         "FastSAM-s.pt",
         "mobile_sam.pt",
-        ]
+    ]
     return sam_model_ids
 
 
@@ -54,7 +54,7 @@ def get_inp_model_ids():
         "Uminosachi/realisticVisionV51_v51VAE-inpainting",
         "Uminosachi/revAnimated_v121Inp-inpainting",
         "runwayml/stable-diffusion-inpainting",
-        ]
+    ]
     if inp_list_from_cache is not None and isinstance(inp_list_from_cache, list):
         model_ids.extend(inp_list_from_cache)
         return model_ids
@@ -84,7 +84,7 @@ def get_cleaner_model_ids():
         "mat",
         "fcf",
         "manga",
-        ]
+    ]
     return model_ids
 
 
@@ -102,5 +102,5 @@ def get_padding_mode_names():
         "median",
         "maximum",
         "minimum",
-        ]
+    ]
     return padding_mode_names
