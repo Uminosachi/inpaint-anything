@@ -1,5 +1,7 @@
 from huggingface_hub import scan_cache_dir
 
+from ia_check_versions import ia_check_versions
+
 
 def get_sampler_names():
     """Get sampler name list.
@@ -55,6 +57,9 @@ def get_inp_model_ids():
         "Uminosachi/revAnimated_v121Inp-inpainting",
         "runwayml/stable-diffusion-inpainting",
     ]
+    if ia_check_versions.diffusers_enable_sdxl_inpaint:
+        model_ids.append("diffusers/stable-diffusion-xl-1.0-inpainting-0.1")
+
     if inp_list_from_cache is not None and isinstance(inp_list_from_cache, list):
         model_ids.extend(inp_list_from_cache)
         return model_ids

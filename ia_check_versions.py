@@ -61,5 +61,13 @@ class IACheckVersions:
         else:
             return torch.backends.mps.is_available() and torch.backends.mps.is_built()
 
+    @cached_property
+    def diffusers_enable_sdxl_inpaint(self):
+        if (find_spec("diffusers") is not None and compare_module_version("diffusers", "0.20.0") >= 0 and
+                find_spec("imwatermark") is not None):
+            return True
+        else:
+            return False
+
 
 ia_check_versions = IACheckVersions()

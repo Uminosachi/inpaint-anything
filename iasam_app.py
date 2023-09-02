@@ -36,6 +36,9 @@ from ia_ui_gradio import reload_javascript
 from ia_ui_items import (get_cleaner_model_ids, get_inp_model_ids, get_padding_mode_names,
                          get_sam_model_ids, get_sampler_names)
 
+if ia_check_versions.diffusers_enable_sdxl_inpaint:
+    from diffusers import AutoPipelineForInpainting
+
 print("platform:", platform.system())
 
 reload_javascript()
@@ -372,17 +375,27 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
     else:
         torch_dtype = torch.float16
 
+    from_pt_kwargs = dict(torch_dtype=torch_dtype)
+
+    sdxl_inpaint = True if ia_check_versions.diffusers_enable_sdxl_inpaint and "stable-diffusion-xl" in inp_model_id else False
+
+    if sdxl_inpaint:
+        sd_inpaint_pipeline = AutoPipelineForInpainting
+        from_pt_kwargs["variant"] = "fp16"
+    else:
+        sd_inpaint_pipeline = StableDiffusionInpaintPipeline
+
     try:
-        pipe = StableDiffusionInpaintPipeline.from_pretrained(inp_model_id, torch_dtype=torch_dtype, local_files_only=local_files_only)
+        pipe = sd_inpaint_pipeline.from_pretrained(inp_model_id, **from_pt_kwargs, local_files_only=local_files_only)
     except Exception as e:
         ia_logging.error(str(e))
         if not config_offline_inpainting:
             try:
-                pipe = StableDiffusionInpaintPipeline.from_pretrained(inp_model_id, torch_dtype=torch_dtype, resume_download=True)
+                pipe = sd_inpaint_pipeline.from_pretrained(inp_model_id, **from_pt_kwargs, resume_download=True)
             except Exception as e:
                 ia_logging.error(str(e))
                 try:
-                    pipe = StableDiffusionInpaintPipeline.from_pretrained(inp_model_id, torch_dtype=torch_dtype, force_download=True)
+                    pipe = sd_inpaint_pipeline.from_pretrained(inp_model_id, **from_pt_kwargs, force_download=True)
                 except Exception as e:
                     ia_logging.error(str(e))
                     return
@@ -436,7 +449,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
 
         generator = torch_generator.manual_seed(seed)
 
-        pipe_args_dict = {
+        pipe_kwargs = {
             "prompt": prompt,
             "image": init_image,
             "width": width,
@@ -448,7 +461,10 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
             "generator": generator,
         }
 
-        output_image = pipe(**pipe_args_dict).images[0]
+        if sdxl_inpaint:
+            pipe_kwargs["strength"] = 0.99
+
+        output_image = pipe(**pipe_kwargs).images[0]
 
         if composite_chk:
             dilate_mask_image = Image.fromarray(cv2.dilate(np.array(mask_image), np.ones((3, 3), dtype=np.uint8), iterations=4))
@@ -462,6 +478,9 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
             "Size": f"{width}x{height}",
             "Model": inp_model_id,
         }
+
+        if sdxl_inpaint:
+            generation_params["Denoising strength"] = 0.99
 
         generation_params_text = ", ".join([k if k == v else f"{k}: {v}" for k, v in generation_params.items() if v is not None])
         prompt_text = prompt if prompt else ""

@@ -18,3 +18,4 @@ lama-cleaner
 ultralytics
 tqdm
 packaging
+invisible-watermark
