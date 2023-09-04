@@ -312,7 +312,7 @@ def add_mask(input_image, sel_mask):
 def auto_resize_to_pil(input_image, mask_image):
     init_image = Image.fromarray(input_image).convert("RGB")
     mask_image = Image.fromarray(mask_image).convert("RGB")
-    assert init_image.size == mask_image.size, "The size of image and mask do not match"
+    assert init_image.size == mask_image.size, "The sizes of the image and mask do not match"
     width, height = init_image.size
 
     new_height = (height // 8) * 8
@@ -475,7 +475,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
         save_name = os.path.join(ia_file_manager.outputs_dir, save_name)
         output_image.save(save_name, pnginfo=metadata)
 
-        yield output_image
+        yield output_image, max([1, iteration_count - (count + 1)])
 
 
 @clear_cache_decorator
@@ -736,7 +736,7 @@ def on_ui_tabs():
                 run_inpaint,
                 inputs=[input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, inp_model_id, save_mask_chk, composite_chk,
                         sampler_name, iteration_count],
-                outputs=[out_image])
+                outputs=[out_image, iteration_count])
             cleaner_btn.click(
                 run_cleaner,
                 inputs=[input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk],
