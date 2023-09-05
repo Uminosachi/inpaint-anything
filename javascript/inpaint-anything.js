@@ -90,6 +90,8 @@ onUiLoaded(async () => {
     const elementIDs = {
         ia_sam_image: "#ia_sam_image",
         ia_sel_mask: "#ia_sel_mask",
+        ia_out_image: "#ia_out_image",
+        ia_cleaner_out_image: "#ia_cleaner_out_image",
     };
 
     // Default config
@@ -191,7 +193,7 @@ onUiLoaded(async () => {
             // fixCanvas();
             targetElement.style.transform = `scale(${elemData[elemId].zoomLevel}) translate(${elemData[elemId].panX}px, ${elemData[elemId].panY}px)`;
 
-            const canvas = gradioApp().querySelector(`${elemId} canvas[key="interface"]`);
+            // const canvas = gradioApp().querySelector(`${elemId} canvas[key="interface"]`);
 
             toggleOverlap("off");
             fullScreenMode = false;
@@ -222,8 +224,9 @@ onUiLoaded(async () => {
         // Fullscreen mode
         function fitToScreen() {
             const canvas = gradioApp().querySelector(`${elemId} canvas[key="interface"]`);
+            const img = gradioApp().querySelector(`${elemId} img`);
 
-            if (!canvas) return;
+            if (!canvas && !img) return;
 
             // if (canvas.offsetWidth > 862) {
             //     targetElement.style.width = canvas.offsetWidth + "px";
@@ -282,7 +285,9 @@ onUiLoaded(async () => {
 
         // Reset zoom when uploading a new image
         const fileInput = gradioApp().querySelector(`${elemId} input[type="file"][accept="image/*"].svelte-116rqfv`);
-        fileInput.addEventListener("click", resetZoom);
+        if (fileInput) {
+            fileInput.addEventListener("click", resetZoom);
+        }
 
         // Handle keydown events
         function handleKeyDown(event) {
@@ -340,6 +345,8 @@ onUiLoaded(async () => {
 
     applyZoomAndPan(elementIDs.ia_sam_image);
     applyZoomAndPan(elementIDs.ia_sel_mask);
+    applyZoomAndPan(elementIDs.ia_out_image);
+    applyZoomAndPan(elementIDs.ia_cleaner_out_image);
 });
 
 var executedOnLoaded = false;
