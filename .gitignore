@@ -1,11 +1,14 @@
 *.pth
+*.pt
 *.pyc
 src/
 outputs/
 models/
+models
 .DS_Store
 ia_config.ini
 .eslintrc
+.eslintrc.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

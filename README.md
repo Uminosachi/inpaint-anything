@@ -121,7 +121,6 @@ exit()
 ## Auto-saving images
 
 * The inpainted image will be automatically saved in the folder that matches the current date within the `outputs` directory.
-* If you would also like to save the segmented images, run the Python script with the following argument:
 
 ## Development
 
