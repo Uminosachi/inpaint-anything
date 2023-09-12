@@ -31,7 +31,7 @@ from ia_config import IAConfig, get_ia_config_index, set_ia_config, setup_ia_con
 from ia_devices import devices
 from ia_file_manager import IAFileManager, download_model_from_hf, ia_file_manager
 from ia_logging import ia_logging
-from ia_threading import clear_cache_decorator, clear_cache_yield_decorator
+from ia_threading import clear_cache_decorator
 from ia_ui_gradio import reload_javascript
 from ia_ui_items import (get_cleaner_model_ids, get_inp_model_ids, get_padding_mode_names,
                          get_sam_model_ids, get_sampler_names)
@@ -336,7 +336,7 @@ def auto_resize_to_pil(input_image, mask_image):
     return init_image, mask_image
 
 
-@clear_cache_yield_decorator
+@clear_cache_decorator
 def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, seed, inp_model_id, save_mask_chk, composite_chk,
                 sampler_name="DDIM", iteration_count=1):
     global sam_dict

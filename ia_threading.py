@@ -1,4 +1,5 @@
 import gc
+import inspect
 import threading
 from functools import wraps
 
@@ -36,19 +37,19 @@ def async_post_clear_cache():
 
 def clear_cache_decorator(func):
     @wraps(func)
+    def yield_wrapper(*args, **kwargs):
+        clear_cache()
+        yield from func(*args, **kwargs)
+        clear_cache()
+
+    @wraps(func)
     def wrapper(*args, **kwargs):
         clear_cache()
         res = func(*args, **kwargs)
         clear_cache()
         return res
-    return wrapper
 
-
-def clear_cache_yield_decorator(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        clear_cache()
-        yield from func(*args, **kwargs)
-        clear_cache()
-
-    return wrapper
+    if inspect.isgeneratorfunction(func):
+        return yield_wrapper
+    else:
+        return wrapper
