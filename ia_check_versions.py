@@ -55,5 +55,12 @@ class IACheckVersions:
         else:
             return torch.backends.mps.is_available() and torch.backends.mps.is_built()
 
+    @cached_property
+    def torch_on_amd_rocm(self):
+        if find_spec("torch") is not None and "rocm" in version("torch"):
+            return True
+        else:
+            return False
+
 
 ia_check_versions = IACheckVersions()
