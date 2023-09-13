@@ -37,7 +37,8 @@ class IACheckVersions:
     @cached_property
     def diffusers_enable_cpu_offload(self):
         if (find_spec("diffusers") is not None and compare_module_version("diffusers", "0.15.0") >= 0 and
-                find_spec("accelerate") is not None and compare_module_version("accelerate", "0.17.0") >= 0):
+                find_spec("accelerate") is not None and compare_module_version("accelerate", "0.17.0") >= 0 and
+                torch.cuda.is_available()):
             return True
         else:
             return False
