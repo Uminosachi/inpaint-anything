@@ -1,5 +1,33 @@
+const inpaintAnything_waitForElement = async (parent, selector, exist) => {
+    return new Promise((resolve) => {
+        const observer = new MutationObserver(() => {
+            if (!!parent.querySelector(selector) != exist) {
+                return;
+            }
+            observer.disconnect();
+            resolve(undefined);
+        });
+
+        observer.observe(parent, {
+            childList: true,
+            subtree: true,
+        });
+
+        if (!!parent.querySelector(selector) == exist) {
+            resolve(undefined);
+        }
+    });
+};
+
+const inpaintAnything_timeout = (ms) => {
+    return new Promise(function (resolve, reject) {
+        setTimeout(() => reject("Timeout"), ms);
+    });
+};
+
 async function inpaintAnything_clearSamMask() {
-    await new Promise((s) => setTimeout(s, 100));
+    const waitForElementToBeInDocument = (parent, selector) =>
+        Promise.race([inpaintAnything_waitForElement(parent, selector, true), inpaintAnything_timeout(1000)]);
 
     const elemId = "#ia_sam_image";
 
@@ -7,6 +35,8 @@ async function inpaintAnything_clearSamMask() {
     if (!targetElement) {
         return;
     }
+    await waitForElementToBeInDocument(targetElement, "button[aria-label='Clear']");
+
     targetElement.style.transform = null;
     targetElement.style.zIndex = null;
     targetElement.style.overflow = "auto";
@@ -21,15 +51,19 @@ async function inpaintAnything_clearSamMask() {
     }
     samMaskClear?.click();
 
-    function clickRemoveImage() {
-        targetElement.style.transform = null;
-        targetElement.style.zIndex = null;
+    if (typeof inpaintAnything_clearSamMask.clickRemoveImage === "undefined") {
+        inpaintAnything_clearSamMask.clickRemoveImage = () => {
+            targetElement.style.transform = null;
+            targetElement.style.zIndex = null;
+        };
     }
-    removeImageButton.addEventListener("click", clickRemoveImage);
+    removeImageButton.removeEventListener("click", inpaintAnything_clearSamMask.clickRemoveImage);
+    removeImageButton.addEventListener("click", inpaintAnything_clearSamMask.clickRemoveImage);
 }
 
 async function inpaintAnything_clearSelMask() {
-    await new Promise((s) => setTimeout(s, 100));
+    const waitForElementToBeInDocument = (parent, selector) =>
+        Promise.race([inpaintAnything_waitForElement(parent, selector, true), inpaintAnything_timeout(1000)]);
 
     const elemId = "#ia_sel_mask";
 
@@ -37,6 +71,8 @@ async function inpaintAnything_clearSelMask() {
     if (!targetElement) {
         return;
     }
+    await waitForElementToBeInDocument(targetElement, "button[aria-label='Clear']");
+
     targetElement.style.transform = null;
     targetElement.style.zIndex = null;
     targetElement.style.overflow = "auto";
@@ -51,11 +87,19 @@ async function inpaintAnything_clearSelMask() {
     }
     selMaskClear?.click();
 
-    function clickRemoveImage() {
-        targetElement.style.transform = null;
-        targetElement.style.zIndex = null;
+    if (typeof inpaintAnything_clearSelMask.clickRemoveImage === "undefined") {
+        inpaintAnything_clearSelMask.clickRemoveImage = () => {
+            targetElement.style.transform = null;
+            targetElement.style.zIndex = null;
+        };
     }
-    removeImageButton.addEventListener("click", clickRemoveImage);
+    removeImageButton.removeEventListener("click", inpaintAnything_clearSelMask.clickRemoveImage);
+    removeImageButton.addEventListener("click", inpaintAnything_clearSelMask.clickRemoveImage);
+}
+
+async function inpaintAnything_initSamSelMask() {
+    inpaintAnything_clearSamMask();
+    inpaintAnything_clearSelMask();
 }
 
 var uiLoadedCallbacks = [];
