@@ -56,8 +56,9 @@ async function inpaintAnything_clearSamMask() {
             targetElement.style.transform = null;
             targetElement.style.zIndex = null;
         };
+    } else {
+        removeImageButton.removeEventListener("click", inpaintAnything_clearSamMask.clickRemoveImage);
     }
-    removeImageButton.removeEventListener("click", inpaintAnything_clearSamMask.clickRemoveImage);
     removeImageButton.addEventListener("click", inpaintAnything_clearSamMask.clickRemoveImage);
 }
 
@@ -92,8 +93,9 @@ async function inpaintAnything_clearSelMask() {
             targetElement.style.transform = null;
             targetElement.style.zIndex = null;
         };
+    } else {
+        removeImageButton.removeEventListener("click", inpaintAnything_clearSelMask.clickRemoveImage);
     }
-    removeImageButton.removeEventListener("click", inpaintAnything_clearSelMask.clickRemoveImage);
     removeImageButton.addEventListener("click", inpaintAnything_clearSelMask.clickRemoveImage);
 }
 
@@ -389,8 +391,8 @@ onUiLoaded(async () => {
 
     applyZoomAndPan(elementIDs.ia_sam_image);
     applyZoomAndPan(elementIDs.ia_sel_mask);
-    applyZoomAndPan(elementIDs.ia_out_image);
-    applyZoomAndPan(elementIDs.ia_cleaner_out_image);
+    // applyZoomAndPan(elementIDs.ia_out_image);
+    // applyZoomAndPan(elementIDs.ia_cleaner_out_image);
 });
 
 var executedOnLoaded = false;

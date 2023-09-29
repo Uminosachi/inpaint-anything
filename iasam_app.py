@@ -448,6 +448,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
     init_image, mask_image = auto_resize_to_pil(input_image, mask_image)
     width, height = init_image.size
 
+    output_list = []
     for count in range(int(iteration_count)):
         gc.collect()
         if seed < 0 or count > 0:
@@ -494,7 +495,9 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
         save_name = os.path.join(ia_file_manager.outputs_dir, save_name)
         output_image.save(save_name, pnginfo=metadata)
 
-        yield output_image, max([1, iteration_count - (count + 1)])
+        output_list.append(output_image)
+
+        yield output_list, max([1, iteration_count - (count + 1)])
 
 
 @clear_cache_decorator
@@ -544,7 +547,7 @@ def run_cleaner(input_image, sel_mask, cleaner_model_id, cleaner_save_mask_chk):
     output_image.save(save_name)
 
     del model
-    return output_image
+    return [output_image]
 
 
 @clear_cache_decorator
@@ -670,11 +673,10 @@ def on_ui_tabs():
                             with gr.Row():
                                 save_mask_chk = gr.Checkbox(label="Save mask", elem_id="save_mask_chk",
                                                             value=False, show_label=False, interactive=False, visible=False)
-                                iteration_count = gr.Slider(label="Iteration", elem_id="iteration_count", minimum=1, maximum=10, value=1, step=1)
+                                iteration_count = gr.Slider(label="Iterations", elem_id="iteration_count", minimum=1, maximum=10, value=1, step=1)
 
                     with gr.Row():
-                        out_image = gr.Image(label="Inpainted image", elem_id="ia_out_image", type="pil",
-                                             interactive=False, show_label=False).style(height=480)
+                        out_image = gr.Gallery(label="Inpainted image", elem_id="ia_out_image", show_label=False, height=480)
 
                 with gr.Tab("Cleaner", elem_id="cleaner_tab"):
                     with gr.Row():
@@ -689,8 +691,7 @@ def on_ui_tabs():
                                                                     value=False, show_label=False, interactive=False, visible=False)
 
                     with gr.Row():
-                        cleaner_out_image = gr.Image(label="Cleaned image", elem_id="ia_cleaner_out_image", type="pil",
-                                                     interactive=False, show_label=False).style(height=480)
+                        cleaner_out_image = gr.Gallery(label="Cleaned image", elem_id="ia_cleaner_out_image", show_label=False, height=480)
 
                 with gr.Tab("Mask only", elem_id="mask_only_tab"):
                     with gr.Row():
