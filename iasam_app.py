@@ -676,7 +676,7 @@ def on_ui_tabs():
                                 iteration_count = gr.Slider(label="Iterations", elem_id="iteration_count", minimum=1, maximum=10, value=1, step=1)
 
                     with gr.Row():
-                        out_image = gr.Gallery(label="Inpainted image", elem_id="ia_out_image", show_label=False, height=480)
+                        out_image = gr.Gallery(label="Inpainted image", elem_id="ia_out_image", show_label=False, columns=2, height=512)
 
                 with gr.Tab("Cleaner", elem_id="cleaner_tab"):
                     with gr.Row():
@@ -691,7 +691,7 @@ def on_ui_tabs():
                                                                     value=False, show_label=False, interactive=False, visible=False)
 
                     with gr.Row():
-                        cleaner_out_image = gr.Gallery(label="Cleaned image", elem_id="ia_cleaner_out_image", show_label=False, height=480)
+                        cleaner_out_image = gr.Gallery(label="Cleaned image", elem_id="ia_cleaner_out_image", show_label=False, columns=2, height=512)
 
                 with gr.Tab("Mask only", elem_id="mask_only_tab"):
                     with gr.Row():
