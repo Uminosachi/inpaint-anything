@@ -599,6 +599,8 @@ def on_ui_tabs():
     cleaner_model_ids = get_cleaner_model_ids()
     padding_mode_names = get_padding_mode_names()
 
+    out_gallery_kwargs = dict(columns=2, height=520, object_fit="contain", preview=True)
+
     block = gr.Blocks().queue()
     block.title = "Inpaint Anything"
     with block as inpaint_anything_interface:
@@ -676,8 +678,12 @@ def on_ui_tabs():
                                 iteration_count = gr.Slider(label="Iterations", elem_id="iteration_count", minimum=1, maximum=10, value=1, step=1)
 
                     with gr.Row():
-                        out_image = gr.Gallery(label="Inpainted image", elem_id="ia_out_image", show_label=False,
-                                               columns=2, height=520, object_fit="contain", preview=True)
+                        if ia_check_versions.gradio_version_is_old:
+                            out_image = gr.Gallery(label="Inpainted image", elem_id="ia_out_image", show_label=False
+                                                   ).style(**out_gallery_kwargs)
+                        else:
+                            out_image = gr.Gallery(label="Inpainted image", elem_id="ia_out_image", show_label=False,
+                                                   **out_gallery_kwargs)
 
                 with gr.Tab("Cleaner", elem_id="cleaner_tab"):
                     with gr.Row():
@@ -692,8 +698,12 @@ def on_ui_tabs():
                                                                     value=False, show_label=False, interactive=False, visible=False)
 
                     with gr.Row():
-                        cleaner_out_image = gr.Gallery(label="Cleaned image", elem_id="ia_cleaner_out_image", show_label=False,
-                                                       columns=2, height=520, object_fit="contain", preview=True)
+                        if ia_check_versions.gradio_version_is_old:
+                            cleaner_out_image = gr.Gallery(label="Cleaned image", elem_id="ia_cleaner_out_image", show_label=False
+                                                           ).style(**out_gallery_kwargs)
+                        else:
+                            cleaner_out_image = gr.Gallery(label="Cleaned image", elem_id="ia_cleaner_out_image", show_label=False,
+                                                           **out_gallery_kwargs)
 
                 with gr.Tab("Mask only", elem_id="mask_only_tab"):
                     with gr.Row():
@@ -718,8 +728,13 @@ def on_ui_tabs():
                 with gr.Row():
                     gr.Markdown("Mouse over image: Press `S` key for Fullscreen mode, `R` key to Reset zoom")
                 with gr.Row():
-                    sam_image = gr.Image(label="Segment Anything image", elem_id="ia_sam_image", type="numpy", tool="sketch", brush_radius=8,
-                                         show_label=False, interactive=True).style(height=480)
+                    if ia_check_versions.gradio_version_is_old:
+                        sam_image = gr.Image(label="Segment Anything image", elem_id="ia_sam_image", type="numpy", tool="sketch", brush_radius=8,
+                                             show_label=False, interactive=True).style(height=480)
+                    else:
+                        sam_image = gr.Image(label="Segment Anything image", elem_id="ia_sam_image", type="numpy", tool="sketch", brush_radius=8,
+                                             show_label=False, interactive=True, height=480)
+
                 with gr.Row():
                     with gr.Column():
                         select_btn = gr.Button("Create Mask", elem_id="select_btn", variant="primary")
@@ -729,10 +744,14 @@ def on_ui_tabs():
                             ignore_black_chk = gr.Checkbox(label="Ignore black area", elem_id="ignore_black_chk", value=True, show_label=True, interactive=True)
 
                 with gr.Row():
-                    sel_mask = gr.Image(label="Selected mask image", elem_id="ia_sel_mask", type="numpy", tool="sketch", brush_radius=12,
-                                        show_label=False, interactive=True).style(height=480)
+                    if ia_check_versions.gradio_version_is_old:
+                        sel_mask = gr.Image(label="Selected mask image", elem_id="ia_sel_mask", type="numpy", tool="sketch", brush_radius=12,
+                                            show_label=False, interactive=True).style(height=480)
+                    else:
+                        sel_mask = gr.Image(label="Selected mask image", elem_id="ia_sel_mask", type="numpy", tool="sketch", brush_radius=12,
+                                            show_label=False, interactive=True, height=480)
 
-                with gr.Row().style(equal_height=False):
+                with gr.Row():
                     with gr.Column():
                         expand_mask_btn = gr.Button("Expand mask region", elem_id="expand_mask_btn")
                         expand_mask_iteration_count = gr.Slider(label="Expand Mask Iterations",
