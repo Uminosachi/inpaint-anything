@@ -140,6 +140,18 @@ onUiLoaded(async () => {
         ia_cleaner_out_image: "#ia_cleaner_out_image",
     };
 
+    function setStyleHeight(elemId, height) {
+        const elem = gradioApp().querySelector(elemId);
+        if (elem) {
+            if (elem.style.height === null || elem.style.height === "") {
+                elem.style.height = height;
+            }
+        }
+    }
+
+    setStyleHeight(elementIDs.ia_out_image, "520px");
+    setStyleHeight(elementIDs.ia_cleaner_out_image, "520px");
+
     // Default config
     const defaultHotkeysConfig = {
         canvas_hotkey_reset: "KeyR",
