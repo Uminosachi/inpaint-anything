@@ -449,6 +449,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
     width, height = init_image.size
 
     output_list = []
+    iteration_count = iteration_count if iteration_count is not None else 1
     for count in range(int(iteration_count)):
         gc.collect()
         if seed < 0 or count > 0:
