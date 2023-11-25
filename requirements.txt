@@ -4,8 +4,7 @@ torchaudio
 torchvision
 accelerate
 diffusers
-gradio
-gradio-client
+gradio<4.0.0
 huggingface-hub
 matplotlib
 numpy
