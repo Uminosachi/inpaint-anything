@@ -1,6 +1,5 @@
 --extra-index-url https://download.pytorch.org/whl/cu118
-torch==2.0.1
-torchaudio
+torch==2.2.2
 torchvision
 accelerate
 diffusers
@@ -12,8 +11,12 @@ opencv-python
 Pillow
 segment-anything
 transformers<5.0.0
-xformers==0.0.20
-lama-cleaner
+xformers==0.0.26
+# lama-cleaner
 ultralytics
 tqdm
 packaging
+loguru
+rich
+pydantic
+timm
