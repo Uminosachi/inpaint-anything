@@ -10,7 +10,7 @@ opencv-python
 Pillow
 segment-anything
 transformers<5.0.0
-xformers==0.0.26
+# xformers
 # lama-cleaner
 ultralytics
 tqdm
