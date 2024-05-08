@@ -2,6 +2,7 @@ import logging
 import warnings
 
 warnings.filterwarnings(action="ignore", category=FutureWarning, module="transformers")
+warnings.filterwarnings(action="ignore", category=FutureWarning, module="huggingface_hub")
 
 ia_logging = logging.getLogger("Inpaint Anything")
 ia_logging.setLevel(logging.INFO)
