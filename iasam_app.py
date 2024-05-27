@@ -602,7 +602,7 @@ def on_ui_tabs():
 
     out_gallery_kwargs = dict(columns=2, height=520, object_fit="contain", preview=True)
 
-    block = gr.Blocks().queue()
+    block = gr.Blocks(analytics_enabled=False).queue()
     block.title = "Inpaint Anything"
     with block as inpaint_anything_interface:
         with gr.Row():

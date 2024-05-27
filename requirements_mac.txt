@@ -4,7 +4,6 @@ accelerate
 diffusers
 gradio<4.0.0
 huggingface-hub
-matplotlib
 numpy
 opencv-python
 Pillow
