@@ -18,8 +18,6 @@ import torch
 from diffusers import (DDIMScheduler, EulerAncestralDiscreteScheduler, EulerDiscreteScheduler,
                        KDPM2AncestralDiscreteScheduler, KDPM2DiscreteScheduler,
                        StableDiffusionInpaintPipeline)
-from lama_cleaner.model_manager import ModelManager
-from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
 from PIL import Image, ImageFilter
 from PIL.PngImagePlugin import PngInfo
 from torch.hub import download_url_to_file
@@ -35,6 +33,8 @@ from ia_threading import clear_cache_decorator
 from ia_ui_gradio import reload_javascript
 from ia_ui_items import (get_cleaner_model_ids, get_inp_model_ids, get_padding_mode_names,
                          get_sam_model_ids, get_sampler_names)
+from lama_cleaner.model_manager import ModelManager
+from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
 
 print("platform:", platform.system())
 
@@ -397,7 +397,7 @@ def run_inpaint(input_image, sel_mask, prompt, n_prompt, ddim_steps, cfg_scale, 
         ia_logging.error(str(e))
         if not config_offline_inpainting:
             try:
-                pipe = StableDiffusionInpaintPipeline.from_pretrained(inp_model_id, torch_dtype=torch_dtype, resume_download=True)
+                pipe = StableDiffusionInpaintPipeline.from_pretrained(inp_model_id, torch_dtype=torch_dtype)
             except Exception as e:
                 ia_logging.error(str(e))
                 try:
