@@ -19,3 +19,4 @@ loguru
 rich
 pydantic
 timm
+onnxruntime
