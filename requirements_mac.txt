@@ -19,3 +19,5 @@ rich
 pydantic
 timm
 onnxruntime
+hydra-core
+iopath
