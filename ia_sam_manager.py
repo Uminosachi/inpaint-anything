@@ -74,7 +74,7 @@ def get_sam_mask_generator(sam_checkpoint, anime_style_chk=False):
         model_type = os.path.splitext(os.path.basename(sam_checkpoint))[0]
         sam_model_registry_local = sam2_model_registry
         SamAutomaticMaskGeneratorLocal = SAM2AutomaticMaskGenerator
-        points_per_batch = 64
+        points_per_batch = 128
     else:
         model_type = os.path.basename(sam_checkpoint)[4:9]
         sam_model_registry_local = sam_model_registry
@@ -84,8 +84,18 @@ def get_sam_mask_generator(sam_checkpoint, anime_style_chk=False):
     pred_iou_thresh = 0.88 if not anime_style_chk else 0.83
     stability_score_thresh = 0.95 if not anime_style_chk else 0.9
 
-    if "sam2_" in os.path.basename(sam_checkpoint):
-        pred_iou_thresh = pred_iou_thresh - 0.08
+    if "sam2_" in model_type:
+        pred_iou_thresh = pred_iou_thresh - 0.18
+        stability_score_thresh = stability_score_thresh - 0.03
+        sam2_gen_kwargs = dict(
+            points_per_side=64,
+            points_per_batch=points_per_batch,
+            pred_iou_thresh=pred_iou_thresh,
+            stability_score_thresh=stability_score_thresh,
+            stability_score_offset=0.7,
+            crop_n_layers=1,
+            box_nms_thresh=0.7,
+            crop_n_points_downscale_factor=2)
 
     if os.path.isfile(sam_checkpoint):
         sam = sam_model_registry_local[model_type](checkpoint=sam_checkpoint)
@@ -100,8 +110,11 @@ def get_sam_mask_generator(sam_checkpoint, anime_style_chk=False):
                 sam.to(device=devices.cpu)
             else:
                 sam.to(device=devices.device)
-        sam_mask_generator = SamAutomaticMaskGeneratorLocal(
+        sam_gen_kwargs = dict(
             model=sam, points_per_batch=points_per_batch, pred_iou_thresh=pred_iou_thresh, stability_score_thresh=stability_score_thresh)
+        if "sam2_" in model_type:
+            sam_gen_kwargs.update(sam2_gen_kwargs)
+        sam_mask_generator = SamAutomaticMaskGeneratorLocal(**sam_gen_kwargs)
     else:
         sam_mask_generator = None
 
