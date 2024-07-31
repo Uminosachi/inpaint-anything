@@ -1,5 +1,6 @@
 import os
 import platform
+from functools import partial
 
 import torch
 
@@ -11,10 +12,37 @@ from ia_logging import ia_logging
 from mobile_sam import SamAutomaticMaskGenerator as SamAutomaticMaskGeneratorMobile
 from mobile_sam import SamPredictor as SamPredictorMobile
 from mobile_sam import sam_model_registry as sam_model_registry_mobile
+from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
+from sam2.build_sam import build_sam2
 from segment_anything_fb import SamAutomaticMaskGenerator, SamPredictor, sam_model_registry
 from segment_anything_hq import SamAutomaticMaskGenerator as SamAutomaticMaskGeneratorHQ
 from segment_anything_hq import SamPredictor as SamPredictorHQ
 from segment_anything_hq import sam_model_registry as sam_model_registry_hq
+
+
+def partial_from_end(func, /, *fixed_args, **fixed_kwargs):
+    def wrapper(*args, **kwargs):
+        updated_kwargs = {**fixed_kwargs, **kwargs}
+        return func(*args, *fixed_args, **updated_kwargs)
+    return wrapper
+
+
+def rename_args(func, arg_map):
+    def wrapper(*args, **kwargs):
+        new_kwargs = {arg_map.get(k, k): v for k, v in kwargs.items()}
+        return func(*args, **new_kwargs)
+    return wrapper
+
+
+arg_map = {"checkpoint": "ckpt_path"}
+rename_build_sam2 = rename_args(build_sam2, arg_map)
+end_kwargs = dict(device="cpu", mode="eval", hydra_overrides_extra=[], apply_postprocessing=False)
+sam2_model_registry = {
+    "sam2_hiera_large": partial(partial_from_end(rename_build_sam2, **end_kwargs), "sam2_hiera_l.yaml"),
+    "sam2_hiera_base_plus": partial(partial_from_end(rename_build_sam2, **end_kwargs), "sam2_hiera_b+.yaml"),
+    "sam2_hiera_small": partial(partial_from_end(rename_build_sam2, **end_kwargs), "sam2_hiera_s.yaml"),
+    "sam2_hiera_tiny": partial(partial_from_end(rename_build_sam2, **end_kwargs), "sam2_hiera_t.yaml"),
+}
 
 
 def get_sam_mask_generator(sam_checkpoint, anime_style_chk=False):
@@ -42,6 +70,11 @@ def get_sam_mask_generator(sam_checkpoint, anime_style_chk=False):
         sam_model_registry_local = sam_model_registry_mobile
         SamAutomaticMaskGeneratorLocal = SamAutomaticMaskGeneratorMobile
         points_per_batch = 64
+    elif "sam2_" in os.path.basename(sam_checkpoint):
+        model_type = os.path.splitext(os.path.basename(sam_checkpoint))[0]
+        sam_model_registry_local = sam2_model_registry
+        SamAutomaticMaskGeneratorLocal = SAM2AutomaticMaskGenerator
+        points_per_batch = 64
     else:
         model_type = os.path.basename(sam_checkpoint)[4:9]
         sam_model_registry_local = sam_model_registry
@@ -50,6 +83,9 @@ def get_sam_mask_generator(sam_checkpoint, anime_style_chk=False):
 
     pred_iou_thresh = 0.88 if not anime_style_chk else 0.83
     stability_score_thresh = 0.95 if not anime_style_chk else 0.9
+
+    if "sam2_" in os.path.basename(sam_checkpoint):
+        pred_iou_thresh = pred_iou_thresh - 0.08
 
     if os.path.isfile(sam_checkpoint):
         sam = sam_model_registry_local[model_type](checkpoint=sam_checkpoint)
