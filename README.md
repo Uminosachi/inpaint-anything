@@ -94,15 +94,19 @@ python iasam_app.py
 #### Model Cache
 * The inpainting model, which is saved in HuggingFace's cache and includes `inpaint` (case-insensitive) in its repo_id, will also be added to the Inpainting Model ID dropdown list.
   * If there's a specific model you'd like to use, you can cache it in advance using the following Python commands:
-```bash
-python
-```
-```python
-from diffusers import StableDiffusionInpaintPipeline
-pipe = StableDiffusionInpaintPipeline.from_pretrained("Uminosachi/dreamshaper_5-inpainting")
-exit()
-```
+  ```bash
+  python
+  ```
+  ```python
+  from diffusers import StableDiffusionInpaintPipeline
+  pipe = StableDiffusionInpaintPipeline.from_pretrained("Uminosachi/dreamshaper_5-inpainting")
+  exit()
+  ```
 * The model diffusers downloaded is typically stored in your home directory. You can find it at `/home/username/.cache/huggingface/hub` for Linux and MacOS users, or at `C:\Users\username\.cache\huggingface\hub` for Windows users.
+  * When executing inpainting, if the following error is output to the console, try deleting the corresponding model from the cache folder mentioned above:
+  ```
+  An error occurred while trying to fetch model name...
+  ```
 
 ### Cleaner Tab
 
