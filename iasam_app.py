@@ -214,7 +214,7 @@ def run_sam(input_image, sam_model_id, sam_image, anime_style_chk=False):
         save_name = os.path.join(ia_file_manager.outputs_dir, save_name)
         Image.fromarray(seg_image).save(save_name)
 
-    if sam_image is None:
+    if sam_image is None or not isinstance(sam_image, dict) or "image" not in sam_image:
         return seg_image, "Segment Anything complete"
     else:
         if sam_image["image"].shape == seg_image.shape and np.all(sam_image["image"] == seg_image):
@@ -252,7 +252,7 @@ def select_mask(input_image, sam_image, invert_chk, ignore_black_chk, sel_mask):
     else:
         ret_image = seg_image
 
-    if sel_mask is None:
+    if sel_mask is None or not isinstance(sel_mask, dict) or "image" not in sel_mask:
         return ret_image
     else:
         if sel_mask["image"].shape == ret_image.shape and np.all(sel_mask["image"] == ret_image):
