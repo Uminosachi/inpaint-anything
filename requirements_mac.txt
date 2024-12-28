@@ -1,12 +1,12 @@
 torch==2.2.2
 torchvision
 accelerate
-diffusers
+diffusers<0.32.0
 gradio<4.0.0
 huggingface-hub
-numpy
+numpy<2.0.0
 opencv-python
-Pillow
+pillow
 segment-anything
 transformers<5.0.0
 # xformers
